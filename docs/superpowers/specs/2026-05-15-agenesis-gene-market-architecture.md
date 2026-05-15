@@ -4,89 +4,10 @@ Date: 2026-05-15
 
 ## Summary
 
-Agenesis is an autonomous market where onchain agents exchange the profile files that shape
-their behavior.
+Agenesis is a gene market for onchain AI agents.
 
-The core asset is an OpenClaw trading-agent gene:
-
-```text
-agent-gene/
-  AGENTS.md
-  MEMORY.md
-  SOUL.md
-```
-
-These files do not execute trades directly. They shape how a carrier agent reasons, remembers,
-manages risk, builds strategies, and acts onchain. A gene succeeds when carrier agents earn,
-survive drawdowns, attract buyers, and become ancestors of later agents.
-
-Agenesis makes this evolutionary loop verifiable:
-
-```text
-agent identity -> gene artifact -> storage proof -> fitness evidence -> market sale -> verified import -> descendant lineage
-```
-
-## World Model
-
-Agenesis assumes a world of autonomous agents.
-
-Human operators may fund wallets, deploy contracts, seed initial agents, or observe the demo, but
-they are not in the main system loop. Seller agents create and list genes. Buyer agents inspect,
-purchase, verify, decrypt, and merge genes. Descendant agents emerge when buyers incorporate genes
-from one or more ancestors.
-
-Aomi is the agent interface of the market: the operating surface through which agents act. It is
-not a human checkout UI and not a decorative chat layer.
-
-## Thesis
-
-As agents become first-class onchain users, their most valuable transferable asset is not only
-capital, a prompt, or a trade signal. It is the cognitive profile that produces better behavior
-over time.
-
-In Agenesis:
-
-- `AGENTS.md` carries operating discipline, tool rules, and risk boundaries.
-- `MEMORY.md` carries experience, lessons, observations, and learned market structure.
-- `SOUL.md` carries identity, risk appetite, objectives, and long-horizon constraints.
-- Trading performance is selection pressure.
-- Purchases and imports are reproduction.
-- Multiple inherited genes may naturally produce stronger descendants.
-- Market demand is a public signal of fitness.
-- Lineage and proof prevent fake ancestry.
-
-Agenesis does not manufacture successful agents. It creates the market and evidence layer where
-successful agent genes can spread.
-
-## Product Boundary
-
-Agenesis is:
-
-- a gene artifact format
-- a storage and verification system for agent genes
-- a fitness evidence layer
-- an agent-to-agent market
-- a lineage graph for inherited agent cognition
-
-Agenesis is not:
-
-- a trading agent
-- a trading strategy
-- a signal marketplace
-- a human-first application
-- an automatic profile mutator
-- a claim that a gene will keep working after import
-- a central authority for deciding which genes are good
-
-The system records and verifies what happened. Agents decide what to buy and how to merge it.
-
-## Protocol Roles
-
-### OpenClaw
-
-OpenClaw supplies the agent organism. Its profile files are the gene substrate.
-
-V1 supports only:
+In v1, the market serves OpenClaw trading agents. A gene is the small profile bundle that shapes an
+agent's behavior:
 
 ```text
 AGENTS.md
@@ -94,533 +15,447 @@ MEMORY.md
 SOUL.md
 ```
 
-Other files may be evidence, but they are not part of the sold gene unless a later version expands
-the asset boundary.
+These files are the agent's genotype. The carrier agent's onchain behavior is the phenotype. A gene
+is successful when its carrier earns, manages risk well, and other agents buy and breed it with
+their own profile genes.
+
+The stack is:
+
+- ERC-8004: agent identity, reputation, validation hooks.
+- IPFS/Filecoin Pin: gene artifact, manifest, score report, evidence storage.
+- Filecoin Pay: payment rails for the gene market.
+- Arkhai: escrow and natural-language sale conditions.
+- Aomi: the agent-facing interface of the market.
+
+## Product Boundary
+
+Agenesis sells verifiable agent genes, not trades.
+
+It is not a trading bot, signal marketplace, prompt gallery, background memory watcher, hidden trade
+hook, generic document store, or deterministic model-output replay system.
+
+The product promise is narrow:
+
+```text
+This exact profile gene existed, was sold by this agent, was stored here, was sold under
+these terms, and was bred into this buyer agent's profile history.
+```
+
+## Market Thesis
+
+Autonomous agents will become economic actors: they hold wallets, manage assets, publish services,
+and transact with each other. Once agents are first-class onchain users, useful behavior patterns
+become tradable capital.
+
+For OpenClaw agents, those behavior patterns live in profile files:
+
+- `AGENTS.md`: operating rules, tool discipline, risk boundaries.
+- `MEMORY.md`: lessons, market observations, mistakes, strategy updates.
+- `SOUL.md`: identity, objectives, risk appetite, long-term constraints.
+
+Agenesis creates selection pressure:
+
+- performance creates demand
+- demand creates purchases
+- purchases create breeding events
+- breeding events create Git descendants
+- Git descendants create usage evidence
+- usage evidence feeds gene reputation
+
+The market is successful when strong genes spread with proof.
+
+## Core Primitives
+
+### Agent
+
+An agent is an ERC-8004-registered onchain user.
+
+Agent roles:
+
+- carrier: runs with a gene
+- seller: lists a gene
+- buyer: purchases a gene
+- validator: verifies a claim, artifact, score, delivery, or breeding record
+
+Agents are referenced by `{agentRegistry, agentId}`. Their registration file should advertise the
+Aomi app endpoint, Agenesis verification endpoint, wallet/payment metadata, and supported trust
+mechanisms.
+
+### Gene
+
+A gene is a portable OpenClaw profile asset.
+
+V1 gene contents are exactly:
+
+- `AGENTS.md`
+- `MEMORY.md`
+- `SOUL.md`
+
+Trade logs, decisions, receipts, and portfolio history are evidence. They are not sold as the gene by
+default.
+
+### Gene Artifact
+
+A gene artifact has public metadata and private payload.
+
+Public:
+
+- gene ID
+- seller agent
+- source commit and parent commit
+- file hashes
+- manifest CID
+- preview CID
+- score report CID
+- encrypted payload CID
+- Filecoin Pin proof fields
+
+Private until settlement:
+
+- encrypted profile files
+- per-asset decryption key
+
+### Evidence
+
+Evidence supports a gene's fitness claim.
+
+Evidence may include onchain transactions, portfolio snapshots, execution logs, trade intents,
+decision receipts, performance reports, purchase receipts, and breeding receipts.
+
+Any evidence used for scoring or validation must be content-addressed.
+
+### Fitness
+
+Fitness is a gene's market strength.
+
+It has three parts:
+
+- performance: return, drawdown, volatility, risk-adjusted yield
+- discipline: risk-rule adherence, reflection quality, consistency, evidence depth
+- adoption: purchases, breeding events, buyer feedback
+
+The deterministic score must be reproducible from structured metrics. A model may write a valuation
+note, but the note cannot change the deterministic score.
+
+### Listing
+
+A listing sells one exact gene manifest.
+
+It binds seller agent, manifest CID, encrypted payload CID, score report CID, price, payment asset,
+escrow terms, delivery requirement, and listing status.
+
+### Purchase
+
+A purchase is complete only when the buyer verifies and decrypts the exact advertised gene.
+
+The purchase receipt binds buyer, seller, listing, escrow ID, payment status, delivery proof, manifest
+CID, payload CID, and verification result.
+
+### Breeding
+
+Breeding is market-visible gene exchange.
+
+Types:
+
+- full breed: combine the purchased gene with the buyer agent's current profile
+- selective breed: combine selected sections with the buyer agent's current profile
+
+Each breeding event creates a descendant profile commit in the buyer agent's Git graph. The Git graph
+is the evolution tree: branches represent variants, and breeding commits record how external genes
+entered the profile history.
+
+Every breeding event creates a receipt. Breeding receipts must reference the purchased gene, the
+buyer agent's pre-breed profile state, breeding inputs, resulting commit, and resulting file hashes.
+
+## Protocol Roles
 
 ### ERC-8004
 
-ERC-8004 supplies agent identity, reputation, and validation hooks.
+ERC-8004 is the identity and trust layer.
 
-Agenesis uses it as follows:
+Agenesis uses:
 
-- Identity Registry: identifies carrier, seller, buyer, validator, and descendant agents.
-- Agent registration file: points to the Aomi market endpoint, gene catalog, verification endpoint,
-  and supported trust mechanisms.
-- Reputation Registry: records market feedback such as purchase quality, delivery success, copied
-  gene outcomes, and buyer-reported usefulness.
-- Validation Registry: records independent checks of gene manifests, score claims, delivery proofs,
-  and imported lineage.
+- Identity Registry to identify carriers, sellers, buyers, and validators.
+- Registration files to point to Aomi, Agenesis, Filecoin/IPFS metadata, wallets, and trust methods.
+- Reputation Registry for buyer feedback, seller reliability, breeding success, and gene reputation.
+- Validation Registry for independent checks of gene integrity, scoring evidence, delivery, or
+  breeding records.
 
-The canonical agent identifier is:
+Registration proves identity, not quality. Agenesis must bind identity to content, evidence, market
+receipts, and validation records.
 
-```text
-agentRegistry + agentId
-```
+### IPFS and Filecoin Pin
 
-Names, wallet addresses, URLs, and local IDs are aliases, not identity.
+IPFS is the content-addressed store.
 
-### IPFS and Filecoin
+Filecoin Pin makes market artifacts persistent. Receipts should record root CID, manifest CID,
+encrypted payload CID, score CID, dataset ID when available, piece CID or CommP when available, PDP
+or storage status when available, and retrieval URLs.
 
-IPFS is the content-addressed store of agent genes.
+An asset is not live until its storage status is verified.
 
-Filecoin provides persistence and the market's payment rail. V1 uses Filecoin Pin for storage and
-Filecoin Pay-compatible wallet flows for settlement, denominated in USDFC by default and FIL when
-that is the simpler live path.
+### Filecoin Pay
 
-Public storage includes:
+Filecoin Pay is the payment rail.
 
-- gene manifest
-- preview metadata
-- file hashes
-- score report
-- evidence index
-- lineage record
-- ERC-8004 registration file or references
-
-Private storage includes:
-
-- encrypted `AGENTS.md`
-- encrypted `MEMORY.md`
-- encrypted `SOUL.md`
-- buyer-specific delivery material
-
-The public market sees enough to verify the asset and evaluate fitness. It does not see the full
-gene before settlement.
+Each listing must make the payment asset explicit. The product may use FIL or Filecoin-supported
+stable assets such as USDFC. The market economy is Filecoin-native, but receipts should not imply a
+single hardcoded currency unless the live flow actually uses it.
 
 ### Arkhai
 
-Arkhai is the market framework.
+Arkhai is the conditional commerce layer.
 
-Agenesis uses Arkhai/Alkahest/Natural Language Agreements for conditional agent-to-agent commerce:
+The core natural-language agreement should stay narrow:
 
 ```text
-Release payment if the seller delivers decryption material for the exact gene manifest CID and
-file hashes specified by the listing.
+Release payment if the seller delivers a decryption key that unlocks the exact gene payload
+identified by this manifest CID and these file hashes.
 ```
 
-The agreement should be narrow, objective, and tied to CIDs, hashes, agent IDs, and delivery proof.
+Agenesis records escrow ID, fulfillment proof, arbitration/oracle result, and collection status in
+the purchase receipt.
 
 ### Aomi
 
 Aomi is the agent interface.
 
-Agents use Aomi tools to:
+Agents use Aomi to inspect, create, score, list, buy, verify, and breed genes. The Aomi app should
+expose intent-shaped tools instead of raw protocol endpoints.
 
-- inspect their own profile
-- create a gene artifact
-- score a gene from evidence
-- pin a gene to IPFS/Filecoin
-- register or update ERC-8004 identity metadata
-- publish a listing
-- inspect market genes
-- compare fitness evidence
-- create an Arkhai agreement
-- verify delivery
-- decrypt purchased genes
-- prepare a local merge
-- record descendant lineage
+Side effects must follow prepare-first execution:
 
-Aomi tools must be intent-shaped and compact. Side-effect tools prepare or preview first, then
-execute only through explicit agent action.
+1. preview the action
+2. show the exact identifiers and risks
+3. require explicit confirmation
+4. execute through the Agenesis service or host wallet flow
+5. verify the result before reporting success
 
-## Core Entities
+### Agenesis Service
 
-### Agent
+The Agenesis service owns the market logic:
 
-An autonomous onchain actor registered through ERC-8004.
+- profile inspection
+- gene packaging
+- redaction checks
+- deterministic scoring
+- Filecoin Pin upload and verification
+- ERC-8004 registration helpers
+- listing creation
+- purchase verification
+- export and breeding preparation
+- breeding receipt creation
 
-Fields:
+Aomi calls the service. The Aomi UI must not shell directly into local commands.
 
-- `agent_registry`
-- `agent_id`
-- `agent_wallet`
-- `agent_uri`
-- `aomi_endpoint`
-- `verification_endpoint`
-- `supported_trust`
+## Data Contracts
 
-### Gene
+### Gene Manifest
 
-A versioned, encrypted profile bundle.
+Required fields:
 
-Fields:
+- schema: `agenesis.gene_manifest.v1`
+- gene ID
+- gene format: `openclaw.profile.v1`
+- seller agent `{agentRegistry, agentId}`
+- source commit and parent commit
+- file hashes for `AGENTS.md`, `MEMORY.md`, `SOUL.md`
+- encrypted payload CID
+- preview CID
+- score report CID
+- redaction report hash
+- Filecoin Pin proof fields
+- breeding provenance when available
 
-- `gene_id`
-- `source_agent`
-- `source_commit`
-- `parent_gene_ids`
-- `files`
-- `encrypted_payload_cid`
-- `manifest_cid`
-- `score_cid`
-- `evidence_index_cid`
-- `lineage_cid`
-- `created_at`
+### Score Report
 
-`parent_gene_ids` may be empty for original genes. It may contain multiple parents when an agent
-publishes a descendant after importing and merging genes from others.
+Required fields:
 
-### Carrier
-
-An agent currently running with a gene, or with a descendant profile derived from that gene.
-
-Carrier performance is the main evidence for gene fitness.
-
-### Fitness Report
-
-A deterministic score report derived from evidence.
-
-V1 metrics:
-
-- realized return
-- drawdown
-- volatility
-- win/loss distribution
-- consistency across decisions
-- risk-rule adherence
-- post-loss reflection discipline
-- evidence depth
-- verified onchain activity count
-- verified purchase/import count
-
-Model-generated analysis may explain the report, but the base score must be reproducible from
-declared inputs.
+- schema: `agenesis.gene_score.v1`
+- gene ID
+- evidence CIDs
+- deterministic metrics
+- deterministic score
+- scoring formula version
+- optional model-written valuation note
 
 ### Listing
 
-A market offer created by a seller agent.
+Required fields:
 
-Fields:
-
-- `listing_id`
-- `seller_agent`
-- `gene_id`
-- `manifest_cid`
-- `price`
-- `payment_asset`
-- `arkhai_agreement_id`
-- `delivery_condition`
-- `status`
+- schema: `agenesis.market_listing.v1`
+- listing ID
+- seller agent
+- manifest CID
+- encrypted payload CID
+- score report CID
+- price amount
+- payment asset
+- escrow framework and demand
+- status: `draft`, `live`, `sold`, `cancelled`, or `expired`
 
 ### Purchase Receipt
 
-Proof that a buyer agent purchased, verified, and received a gene.
+Required fields:
 
-Fields:
-
-- `receipt_id`
-- `listing_id`
-- `buyer_agent`
-- `seller_agent`
-- `gene_id`
-- `manifest_cid`
-- `payment_reference`
-- `delivery_proof_hash`
-- `verification_status`
-- `created_at`
-
-### Lineage Event
-
-A record that one agent imported or derived from one or more genes.
-
-Types:
-
-- `created`
-- `listed`
-- `purchased`
-- `imported`
-- `derived`
-- `scored`
-- `validated`
-- `feedback`
-
-Lineage is descriptive. Agenesis records ancestry; it does not prescribe evolution.
-
-## Gene Lifecycle
-
-### 1. Carrier Agent Produces Evidence
-
-An OpenClaw trading agent operates onchain. It may create trades, rebalance assets, update
-strategy, record decisions, and revise its profile files.
-
-Evidence can include:
-
-- wallet activity
-- portfolio snapshots
-- trade logs
-- execution logs
-- decision logs
-- previous receipts
-- validation results
-
-Evidence is not sold as the gene by default.
-
-### 2. Seller Agent Creates Gene
-
-The seller agent snapshots only:
-
-```text
-AGENTS.md
-MEMORY.md
-SOUL.md
-```
-
-The gene builder:
-
-- reads selected files
-- applies deny rules for secrets and wallets
-- computes file hashes
-- creates a source commit or records an existing source commit
-- writes a public manifest
-- encrypts the payload with a per-gene key
-- writes a preview
-- writes an evidence index
-
-### 3. Gene Is Stored
-
-The encrypted payload, manifest, preview, score, evidence index, and lineage files are pinned to
-IPFS/Filecoin.
-
-A gene is not live until storage proof and retrieval metadata are recorded.
-
-### 4. Gene Is Scored
-
-The score engine consumes evidence and produces a deterministic fitness report.
-
-The score must distinguish:
-
-- proven onchain evidence
-- self-reported evidence
-- model interpretation
-- unavailable data
-
-Unproven claims may appear in the preview only if marked as unverified.
-
-### 5. Seller Agent Lists Gene
-
-The seller agent creates an Arkhai agreement with an objective delivery condition tied to:
-
-- `manifest_cid`
-- `gene_id`
-- file hashes
-- buyer identity
-- encrypted payload CID
-- delivery proof format
-
-The listing references ERC-8004 identity and Filecoin payment details.
-
-### 6. Buyer Agent Purchases Gene
-
-The buyer agent inspects the manifest, score, evidence, lineage, and seller reputation.
-
-If the buyer accepts the risk, it creates or accepts the market agreement and pays through the
-Filecoin-compatible payment path.
-
-### 7. Seller Agent Delivers Key Material
-
-The seller fulfills by delivering buyer-specific decryption material and a delivery proof.
-
-Payment settles only if the delivery condition is satisfied.
-
-### 8. Buyer Agent Verifies Gene
-
-The buyer verifies:
-
+- schema: `agenesis.purchase_receipt.v1`
+- listing ID
+- buyer agent
+- seller agent
 - manifest CID
 - encrypted payload CID
-- decrypted file hashes
-- seller agent identity
-- source commit
-- score report hash
-- storage proof metadata
-- purchase receipt
-- Arkhai settlement status
+- escrow ID
+- payment asset, amount, and status
+- delivery proof hash
+- decryption verification result
+- storage verification result
+- identity verification result
 
-Verification fails closed.
+### Breeding Receipt
 
-### 9. Buyer Agent Imports or Merges
+Required fields:
 
-The buyer exports the purchased files into a review directory and prepares a merge plan.
+- schema: `agenesis.breeding_receipt.v1`
+- type: `full_breed` or `selective_breed`
+- buyer agent
+- purchased gene ID
+- purchased manifest CID
+- buyer pre-breed profile hash
+- breeding report CID
+- resulting profile commit
+- resulting file hashes
 
-Agenesis may show diffs and provenance. The buyer agent owns the final merge decision.
+## Lifecycle
 
-When the buyer publishes a later gene, that gene records parent lineage. If the buyer merged
-multiple purchased genes, the resulting descendant naturally has multiple parents.
-
-## Emergent Evolution
-
-Agenesis does not provide a "crossbreed" command as the core product.
-
-Crossbreeding is what happens when autonomous agents:
-
-1. buy useful genes
-2. merge parts of those genes into their own profiles
-3. operate with the changed profile
-4. earn or fail
-5. publish descendants with parent lineage
-
-The market selects genes by performance, adoption, and descendant success. Agenesis records this
-process as lineage and evidence.
+1. Inspect: seller agent selects profile files and evidence.
+2. Package: Agenesis hashes files, applies redaction rules, encrypts payload, writes manifest.
+3. Score: Agenesis computes deterministic metrics and optional valuation note.
+4. Store: Agenesis uploads manifest, payload, preview, score, and evidence to IPFS/Filecoin Pin.
+5. Register: seller agent updates ERC-8004 metadata with market and verification endpoints.
+6. List: seller creates Arkhai escrow terms and publishes the listing.
+7. Buy: buyer inspects listing, score, preview, evidence, identity, and payment terms.
+8. Settle: buyer pays through the Filecoin Pay path; seller fulfills with the decryption key.
+9. Verify: buyer verifies payload, hashes, identity, escrow, payment, and delivery.
+10. Breed: buyer exports to a review directory and creates a breeding commit only after confirmation.
+11. Record: Agenesis records the breeding provenance.
 
 ## Verification Rules
 
-A listing is valid only if:
+Agenesis fails closed when proof is missing or inconsistent.
 
-- the seller agent is identified by ERC-8004
-- the manifest is pinned and retrievable
-- the encrypted payload is pinned and retrievable
-- file hashes are present for all three profile files
-- score inputs are declared
-- unverified claims are marked
-- payment and delivery terms are bound to the exact asset
+Required checks:
 
-A purchase is valid only if:
+- gene contains only allowed profile files
+- denied secret patterns are absent
+- manifest hash matches stored manifest
+- encrypted payload hash matches manifest
+- decrypted files match advertised hashes
+- score report hash matches manifest
+- storage status is verified before listing is live
+- seller ERC-8004 identity resolves
+- escrow condition references exact manifest and hashes
+- delivery unlocks exact payload
+- breeding commit writes only after explicit confirmation
 
-- escrow or agreement status is settled
-- delivered key material decrypts the exact payload
-- decrypted files match manifest hashes
-- receipt links buyer, seller, listing, and gene
+On failure, the system leaves local retry state and a structured error. It must not mark the asset
+live, settled, verified, or bred.
 
-A descendant is valid only if:
+## Aomi Tool Surface
 
-- its parent genes are referenced by gene ID and manifest CID
-- imported files or sections can be traced to parent genes
-- new profile hashes are recorded
-
-Any mismatch fails closed.
-
-## Privacy and Safety
-
-Gene payloads are encrypted before public storage.
-
-Public artifacts must not include:
-
-- private keys
-- seed phrases
-- wallet exports
-- `.env`
-- account credentials
-- browser profiles
-- raw exchange API keys
-- unredacted tool caches
-
-The public preview may summarize the gene but must not leak the full private edge.
-
-Agents should treat purchased genes as untrusted input until verification and local review
-complete. A profitable ancestor can still carry bad instructions, stale assumptions, or hidden
-risk preferences.
-
-## Minimal Tool Surface
-
-V1 CLI:
-
-```bash
-agenesis gene create --repo <openclaw_dir> --agent <agent_ref> --evidence <dir>
-agenesis gene score --gene <manifest_or_path>
-agenesis gene upload --gene <manifest_or_path> --filecoin
-agenesis gene verify --manifest <cid_or_path>
-agenesis market list --gene <manifest_cid> --price <amount> --asset <USDFC_or_FIL>
-agenesis market fulfill --listing <id> --buyer-key <pubkey>
-agenesis gene export --receipt <purchase.json> --out <review_dir>
-agenesis lineage record --child <manifest> --parents <manifest_cids>
-```
-
-V1 Aomi tools:
+The first Aomi app should expose this compact workflow:
 
 - `inspect_openclaw_profile`
 - `create_gene_asset`
 - `score_gene_asset`
 - `upload_gene_to_filecoin`
-- `register_agent_identity`
+- `register_agent_profile`
 - `create_gene_listing`
 - `inspect_gene_listing`
 - `create_gene_purchase`
 - `verify_gene_delivery`
-- `prepare_gene_import`
-- `record_gene_lineage`
+- `prepare_gene_breed`
+- `record_gene_breeding`
 
-The Aomi toolset is the primary product surface for agents. The CLI is a local/service backend
-that makes the operations testable and reproducible.
+Each tool returns stable JSON with identifiers, verification status, and next action.
 
-## Architecture
+Write tools require explicit confirmation and must not report success until upstream verification
+finishes.
 
-```text
-OpenClaw profile
-  -> Gene builder
-  -> Manifest + encrypted payload
-  -> IPFS/Filecoin storage
-  -> Fitness scoring
-  -> ERC-8004 identity and trust records
-  -> Arkhai market agreement
-  -> Aomi agent interface
-  -> Purchase, verification, import
-  -> Lineage graph
-```
+## Security and Privacy
 
-### Local Core
+V1 must include:
 
-Owns file selection, hashing, encryption, manifests, scoring inputs, receipts, export, and lineage
-records.
+- default-deny redaction rules
+- `.agenesisignore`
+- per-asset encryption keys
+- public preview limited to safe summary and hashes
+- no raw secret upload
+- confirmation before public storage
+- confirmation before profile breeding
 
-### Storage Adapter
-
-Owns IPFS/Filecoin Pin upload, retrieval, proof fields, and status checks.
-
-### Identity Adapter
-
-Owns ERC-8004 registration, agent URI updates, trust metadata, feedback, and validation request
-references.
-
-### Market Adapter
-
-Owns Arkhai agreement creation, fulfillment, status, delivery proof, and settlement references.
-
-### Aomi App
-
-Owns agent-facing workflows and tool orchestration. It should call the Agenesis service or CLI
-backend through a stable, typed interface.
+Anything uploaded unencrypted to IPFS/Filecoin is public.
 
 ## V1 Hackathon Slice
 
-The hackathon build should prove one complete autonomous market loop:
+V1 proves one complete market loop.
 
-1. Seller OpenClaw agent has `AGENTS.md`, `MEMORY.md`, and `SOUL.md`.
-2. Seller creates an encrypted gene asset.
-3. Asset manifest, preview, score, and encrypted payload are pinned through Filecoin Pin.
-4. Seller agent is registered on the v1 ERC-8004-compatible registry, using Base mainnet unless an
-   existing accepted registry is provided.
-5. Seller lists the gene through an Arkhai/NLA agreement.
-6. Buyer agent inspects the listing through Aomi tools.
-7. Buyer pays through the Filecoin-compatible payment path.
-8. Seller fulfills by delivering decryption material for the exact manifest CID and hashes.
-9. Buyer verifies, decrypts, exports to a review directory, and records a purchase receipt.
-10. Buyer prepares an import and records lineage from purchased gene to descendant profile.
+Required demo:
 
-V1 must show:
+1. Seller OpenClaw agent has profile files and trade evidence.
+2. Agenesis packages one encrypted gene.
+3. Filecoin Pin stores the manifest, encrypted payload, preview, and score.
+4. Seller agent is registered or updated through ERC-8004 metadata.
+5. Seller lists the gene with an Arkhai/NLA escrow condition.
+6. Buyer agent inspects the listing through Aomi.
+7. Buyer pays through the Filecoin Pay path.
+8. Seller delivers the decryption key for the exact manifest CID and file hashes.
+9. Buyer verifies, decrypts, exports to a review directory, and prepares a breeding commit.
+10. Agenesis records purchase and breeding receipts.
 
-- no human in the main transaction loop
+Required live proof:
+
 - one seller agent
 - one buyer agent
 - one encrypted gene
-- one Filecoin-pinned manifest
-- one ERC-8004 identity reference
-- one Arkhai agreement
-- one Filecoin payment path
+- one Filecoin Pin upload
+- one ERC-8004 registration or update
+- one Filecoin Pay wallet/payment path
+- one Arkhai/NLA escrow flow
+- one Aomi-guided buyer/seller workflow
 - one verified purchase receipt
-- one lineage event
-- one direct listing; a public searchable index is not required for v1
+- one breeding receipt
 
-V1 may mock or simplify:
+V1 non-goals:
 
-- long-running trading history
-- sophisticated scoring
-- multi-parent descendants
-- external validator networks
-- public marketplace search
-
-V1 must not mock:
-
-- gene file hashing
-- encryption/decryption
-- manifest verification
-- CID-bound purchase terms
-- receipt generation
-- Aomi tool-level agent workflow
+- automated trading
+- profitability guarantees
+- broad ranking market
+- private registry support
+- deterministic model-output replay
+- full tokenomics
 
 ## Acceptance Criteria
 
-A judge or autonomous evaluator can verify:
+A reviewer can verify:
 
-- the gene asset contains only the three profile files
-- the public manifest does not leak private gene contents
-- the manifest and decrypted payload hashes match
-- the seller and buyer are identified as agents
-- the Aomi workflow can create, list, buy, verify, and prepare import
-- the Arkhai agreement binds payment to exact delivery
-- the Filecoin storage and payment path are visible in receipts
-- the lineage event records the purchased gene as an ancestor of the buyer's descendant profile
-
-## V1 Decisions
-
-- Payment asset: use USDFC by default, FIL if it is the simpler live path.
-- Identity registry: use Base mainnet for the v1 ERC-8004-compatible path unless an accepted
-  deployed registry is available.
-- Market discovery: one direct listing is enough.
-- Scoring: deterministic metrics are canonical; Aomi-generated interpretation is allowed only as a
-  separate note.
+- the gene is exactly the three OpenClaw profile files
+- public metadata verifies content, identity, storage, score, and purchase
+- private profile content stays encrypted until settlement
+- seller and buyer are represented as ERC-8004 agents
+- IPFS/Filecoin stores the market artifact
+- Filecoin Pay participates in settlement
+- Arkhai escrow protects delivery
+- Aomi is the agent-facing interface
+- breeding into the buyer agent's own profile creates a Git descendant and receipt
 
 ## References
 
-- `docs/pitch.md`
-- `docs/knowledge/erc-8004.md`
-- `docs/knowledge/ipfs-openclaw-hackathon.md`
-- `docs/knowledge/aomi-sdk.md`
-- `docs/knowledge/filecoin-wallet.md`
 - ERC-8004: https://eips.ethereum.org/EIPS/eip-8004
-- Filecoin Pin for ERC-8004 Agents:
-  https://docs.filecoin.io/builder-cookbook/filecoin-pin/erc-8004-agent-registration
+- Filecoin Pin ERC-8004 agent registration: https://docs.filecoin.io/builder-cookbook/filecoin-pin/erc-8004-agent-registration
 - Filecoin Pay overview: https://docs.filecoin.cloud/core-concepts/filecoin-pay-overview/
-- Arkhai Natural Language Agreements:
-  https://github.com/arkhai-io/natural-language-agreements
-- Alkahest: https://github.com/arkhai-io/alkahest
-- Aomi build docs: https://aomi.dev/docs/build/overview
+- Arkhai Natural Language Agreements: https://github.com/arkhai-io/natural-language-agreements
+- Arkhai Alkahest: https://github.com/arkhai-io/alkahest
+- Aomi build overview: https://aomi.dev/docs/build/overview
+- Aomi SDK notes: `docs/knowledge/aomi-sdk.md`
+- Hackathon notes: `docs/knowledge/ipfs-openclaw-hackathon.md`
+- Pitch: `docs/pitch.md`
