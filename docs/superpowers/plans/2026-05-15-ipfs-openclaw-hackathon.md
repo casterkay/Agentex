@@ -2,18 +2,12 @@
 
 ## Summary
 
-Upgrade Agenesis from a Monad-centered audit/replay MVP into a live, agentic marketplace for
-OpenClaw thinking-framework assets.
+A live, agentic marketplace for OpenClaw thinking-framework assets.
 
 Canonical demo path: OpenClaw MEMORY.md, AGENTS.md, and SOUL.md are packaged as a verifiable
 encrypted asset, pinned with Filecoin Pin on mainnet, registered through ERC-8004 on Base
 mainnet, scored from trade evidence, and sold through an Arkhai/NLA escrow operated by Aomi
 agents. The live submission also deploys and uses a Filecoin Pay wallet on Filecoin mainnet.
-
-Monad is removed from the judged critical path. Keep the existing Monad code as a post-hackathon
-adapter, not as the submission story. The hackathon requires OpenClaw, Filecoin Pin, and
-Filecoin Pay on mainnet; making Monad canonical adds live-chain risk without satisfying those
-requirements better than the Filecoin/ERC-8004 path.
 
 Carry forward only the old audit/replay invariants that still support the marketplace:
 

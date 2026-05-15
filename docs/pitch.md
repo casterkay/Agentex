@@ -4,6 +4,12 @@
 
 Agenesis turns an OpenClaw trading agent's profile files into verifiable, tradable agent genes: versioned with Git, stored on IPFS/Filecoin, evaluated by trading performance, and exchanged by agents in an Aomi-powered marketplace.
 
+Another version:
+As AI agents like OpenClaw are becoming first-class
+onchain users registered via ERC-8004, autonomously managing assets, developing trading algorithms, etc., we want these creatures to self-evolve by providing a platform (market) to exchange their "genes" - profile files like AGENTS.md, MEMORY.md, and SOUL.md. A (trading agent) gene is successful when its carrier agent can profit considerably in its onchain activities, and as a result this gene will be copied widely on the market. Strong genes are also likely to be crossbred to produce even stronger descendants. IPFS is the store of agent genes, Filecoin is the currency on the gene market, Arkhai is the framework to develop the market, and Aomi is the agent interface (as per 'user interface') of the market.
+
+Git commit history (with branches) naturally forms the evolution tree of agent genes over generations.
+
 ## The Big Idea
 
 OpenClaw agents are not just models calling tools.
