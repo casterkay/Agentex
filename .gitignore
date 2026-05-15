@@ -1,0 +1,11 @@
+.history/
+.agents/
+node_modules/
+tmp/
+dist/
+out/
+cache/
+demo/.work/
+replay/
+broadcast/
+.DS_Store
