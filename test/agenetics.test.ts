@@ -8,9 +8,9 @@ import { test } from "node:test";
 
 import {
   createGeneAsset,
-  createMemexchangeServer,
+  createAgeneticsServer,
   exportGeneAsset,
-  invokeMemexchangeTool,
+  invokeAgeneticsTool,
   planExchangeRound,
   scoreGeneAsset,
   verifyGeneAsset,
@@ -19,7 +19,7 @@ import {
 const key = "0123456789abcdef0123456789abcdef";
 
 async function fixtureRepo(): Promise<string> {
-  const dir = mkdtempSync(path.join(tmpdir(), "memexchange-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "agenetics-"));
   execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
   execFileSync("git", ["config", "user.email", "agent@example.test"], { cwd: dir });
   execFileSync("git", ["config", "user.name", "Agent"], { cwd: dir });
@@ -49,7 +49,7 @@ test("createGeneAsset packages only profile files and encrypts the payload", asy
     asset.manifest.files.map((file) => file.path),
     ["AGENTS.md", "MEMORY.md"],
   );
-  assert.equal(asset.manifest.schema, "memexchange.gene_manifest.v1");
+  assert.equal(asset.manifest.schema, "agenetics.gene_manifest.v1");
   assert.equal(asset.manifest.gene_format, "openclaw.profile.v1");
   assert.match(asset.manifest.encrypted_payload_ref, /^local:[a-f0-9]{64}$/);
   assert.equal(asset.redaction.blocked.length, 0);
@@ -165,7 +165,7 @@ test("Aomi-facing tools require confirmation before side effects", async (t) => 
   const repo = await fixtureRepo();
   t.after(() => rm(repo, { recursive: true, force: true }));
 
-  const preview = await invokeMemexchangeTool("create_gene_asset", {
+  const preview = await invokeAgeneticsTool("create_gene_asset", {
     repo,
     agent: "alpha",
     seller: { agentRegistry: "0xregistry", agentId: "1" },
@@ -175,7 +175,7 @@ test("Aomi-facing tools require confirmation before side effects", async (t) => 
   assert.equal(preview.status, "confirmation_required");
   assert.equal(preview.next_action, "call create_gene_asset again with confirm:true");
 
-  const created = await invokeMemexchangeTool("create_gene_asset", {
+  const created = await invokeAgeneticsTool("create_gene_asset", {
     repo,
     agent: "alpha",
     seller: { agentRegistry: "0xregistry", agentId: "1" },
@@ -197,7 +197,7 @@ test("Filecoin upload tool does not invent success without wallet configuration"
     key,
   });
 
-  const result = await invokeMemexchangeTool("upload_gene_to_filecoin", {
+  const result = await invokeAgeneticsTool("upload_gene_to_filecoin", {
     manifestPath: asset.paths.manifest,
     confirm: true,
   });
@@ -207,7 +207,7 @@ test("Filecoin upload tool does not invent success without wallet configuration"
 });
 
 test("HTTP tool server exposes compact JSON tool calls", async (t) => {
-  const server = createMemexchangeServer();
+  const server = createAgeneticsServer();
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();

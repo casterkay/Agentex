@@ -6,7 +6,7 @@ updated: 2026-05-16
 
 # Filecoin Pin
 
-Filecoin Pin is the official package Memexchange should use for IPFS/Filecoin persistence.
+Filecoin Pin is the official package Agenetics should use for IPFS/Filecoin persistence.
 
 Useful integration points:
 

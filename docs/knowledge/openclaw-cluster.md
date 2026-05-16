@@ -2,7 +2,7 @@
 
 Source: https://docs.openclaw.ai/install/kubernetes
 
-Use this as the local deployment reference for the Memexchange four-agent demo.
+Use this as the local deployment reference for the Agenetics four-agent demo.
 
 ## What you need
 
@@ -115,7 +115,7 @@ kubectl rollout restart deployment/openclaw -n openclaw
 OPENCLAW_NAMESPACE=my-namespace ./scripts/k8s/deploy.sh
 ```
 
-For the Memexchange demo, deploy four isolated OpenClaw instances:
+For the Agenetics demo, deploy four isolated OpenClaw instances:
 
 ```
 OPENCLAW_NAMESPACE=openclaw-alpha ./scripts/k8s/deploy.sh

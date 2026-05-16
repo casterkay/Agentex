@@ -3,7 +3,7 @@ import { Command } from "commander";
 
 import {
   createGeneAsset,
-  createMemexchangeServer,
+  createAgeneticsServer,
   exportGeneAsset,
   planExchangeRound,
   scoreGeneAsset,
@@ -14,8 +14,8 @@ import {
 const program = new Command();
 
 program
-  .name("memexchange")
-  .description("Memexchange OpenClaw gene market CLI")
+  .name("agenetics")
+  .description("Agenetics OpenClaw gene market CLI")
   .version("0.1.0");
 
 const gene = program.command("gene").description("Create, score, verify, and export profile genes");
@@ -28,7 +28,7 @@ gene
   .requiredOption("--seller-id <id>")
   .option("--evidence <path>")
   .option("--out <path>")
-  .option("--key <key>", "gene encryption key", process.env.MEMEXCHANGE_GENE_KEY)
+  .option("--key <key>", "gene encryption key", process.env.AGENETICS_GENE_KEY)
   .action(async (options) => {
     requireKey(options.key);
     const asset = await createGeneAsset({
@@ -64,7 +64,7 @@ gene
 gene
   .command("verify")
   .requiredOption("--manifest <path>")
-  .option("--key <key>", "gene encryption key", process.env.MEMEXCHANGE_GENE_KEY)
+  .option("--key <key>", "gene encryption key", process.env.AGENETICS_GENE_KEY)
   .action(async (options) => {
     requireKey(options.key);
     const result = await verifyGeneAsset({ manifestPath: options.manifest, key: options.key });
@@ -78,7 +78,7 @@ gene
   .command("export")
   .requiredOption("--manifest <path>")
   .requiredOption("--out <path>")
-  .option("--key <key>", "gene encryption key", process.env.MEMEXCHANGE_GENE_KEY)
+  .option("--key <key>", "gene encryption key", process.env.AGENETICS_GENE_KEY)
   .action(async (options) => {
     requireKey(options.key);
     const result = await exportGeneAsset({
@@ -128,7 +128,7 @@ program
   .option("--host <host>", "host", "127.0.0.1")
   .option("--port <port>", "port", "8787")
   .action(async (options) => {
-    const server = createMemexchangeServer();
+    const server = createAgeneticsServer();
     await new Promise<void>((resolve) => server.listen(Number(options.port), options.host, resolve));
     print({ status: "listening", host: options.host, port: Number(options.port) });
   });
@@ -145,6 +145,6 @@ function print(value: unknown): void {
 
 function requireKey(key: unknown): asserts key is string {
   if (typeof key !== "string" || key.length === 0) {
-    throw new Error("encryption key required: pass --key or set MEMEXCHANGE_GENE_KEY");
+    throw new Error("encryption key required: pass --key or set AGENETICS_GENE_KEY");
   }
 }

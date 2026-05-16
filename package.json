@@ -1,13 +1,13 @@
 {
-  "name": "memexchange",
+  "name": "agenetics",
   "version": "0.1.0",
   "description": "Verifiable OpenClaw profile gene market core",
   "type": "module",
   "bin": {
-    "memexchange": "./src/cli.ts"
+    "agenetics": "./src/cli.ts"
   },
   "scripts": {
-    "test": "node --import tsx --test test/memexchange.test.ts",
+    "test": "node --import tsx --test test/agenetics.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "engines": {

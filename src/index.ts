@@ -25,7 +25,7 @@ export interface GeneFile {
 }
 
 export interface GeneManifest {
-  schema: "memexchange.gene_manifest.v1";
+  schema: "agenetics.gene_manifest.v1";
   gene_id: string;
   gene_format: "openclaw.profile.v1";
   agent: string;
@@ -58,13 +58,13 @@ export interface GeneAsset {
 }
 
 export interface RedactionReport {
-  schema: "memexchange.redaction_report.v1";
+  schema: "agenetics.redaction_report.v1";
   checked: string[];
   blocked: string[];
 }
 
 export interface ScoreReport {
-  schema: "memexchange.gene_score.v1";
+  schema: "agenetics.gene_score.v1";
   gene_id: string;
   evidence_hashes: string[];
   metrics: {
@@ -78,10 +78,10 @@ export interface ScoreReport {
   valuation_note?: string;
 }
 
-export type MemexchangeToolResult = Record<string, unknown>;
+export type AgeneticsToolResult = Record<string, unknown>;
 
 export interface FilecoinUploadReceipt {
-  schema: "memexchange.filecoin_upload.v1";
+  schema: "agenetics.filecoin_upload.v1";
   manifest_path: string;
   uploads: Array<{
     name: string;
@@ -106,7 +106,7 @@ export async function createGeneAsset(input: {
   const repo = path.resolve(input.repo);
   const outputRoot = input.outDir
     ? path.resolve(input.outDir)
-    : path.join(repo, ".memexchange", "genes");
+    : path.join(repo, ".agenetics", "genes");
   const ignored = await readIgnore(repo);
   const files = await Promise.all(
     PROFILE_FILES.map(async (relativePath) => {
@@ -130,20 +130,20 @@ export async function createGeneAsset(input: {
   );
 
   const redaction: RedactionReport = {
-    schema: "memexchange.redaction_report.v1",
+    schema: "agenetics.redaction_report.v1",
     checked: files.map((file) => file.path),
     blocked: [],
   };
   const redactionText = stableJson(redaction);
   const payload = {
-    schema: "memexchange.encrypted_gene_payload.v1",
+    schema: "agenetics.encrypted_gene_payload.v1",
     files,
   };
   const encrypted = encrypt(Buffer.from(stableJson(payload), "utf8"), input.key);
   const encryptedText = stableJson(encrypted);
   const encryptedHash = sha256(encryptedText);
   const preview = {
-    schema: "memexchange.gene_preview.v1",
+    schema: "agenetics.gene_preview.v1",
     agent: input.agent,
     files: files.map(({ content: _content, ...file }) => file),
   };
@@ -163,7 +163,7 @@ export async function createGeneAsset(input: {
   await mkdir(root, { recursive: true });
 
   const manifest: GeneManifest = {
-    schema: "memexchange.gene_manifest.v1",
+    schema: "agenetics.gene_manifest.v1",
     gene_id: geneId,
     gene_format: "openclaw.profile.v1",
     agent: input.agent,
@@ -231,7 +231,7 @@ export async function scoreGeneAsset(input: {
     Math.round(manifest.files.length * 20 + evidence.length * 12 + Math.min(evidenceBytes, 4000) / 100),
   );
   const report: ScoreReport = {
-    schema: "memexchange.gene_score.v1",
+    schema: "agenetics.gene_score.v1",
     gene_id: manifest.gene_id,
     evidence_hashes: evidence.map((item) => item.sha256).sort(),
     metrics: {
@@ -278,11 +278,11 @@ export async function uploadGeneToFilecoin(input: {
   const carData = await readFile(carPath);
   const result = await executeUpload(synapse, carData, rootCid, {
     logger: pino({ level: "silent" }),
-    contextId: "memexchange-gene",
-    metadata: { source: "memexchange", manifest: path.basename(input.manifestPath) },
+    contextId: "agenetics-gene",
+    metadata: { source: "agenetics", manifest: path.basename(input.manifestPath) },
   });
   const receipt: FilecoinUploadReceipt = {
-    schema: "memexchange.filecoin_upload.v1",
+    schema: "agenetics.filecoin_upload.v1",
     manifest_path: input.manifestPath,
     uploads: [
       {
@@ -366,7 +366,7 @@ export async function exportGeneAsset(input: {
   await writeFile(
     path.join(input.out, "DIFF_PLAN.md"),
     [
-      "# Memexchange Gene Review",
+      "# Agenetics Gene Review",
       "",
       "Review exported profile files before breeding them into an agent profile.",
       "",
@@ -388,10 +388,10 @@ export function planExchangeRound(agents: string[]): Array<{ buyer: string; sell
   }));
 }
 
-export async function invokeMemexchangeTool(
+export async function invokeAgeneticsTool(
   name: string,
   args: Record<string, unknown>,
-): Promise<MemexchangeToolResult> {
+): Promise<AgeneticsToolResult> {
   switch (name) {
     case "inspect_openclaw_profile": {
       const profile = await inspectOpenclawProfile({ repo: stringArg(args, "repo") });
@@ -482,7 +482,7 @@ export async function invokeMemexchangeTool(
   }
 }
 
-export function createMemexchangeServer(): Server {
+export function createAgeneticsServer(): Server {
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -492,7 +492,7 @@ export function createMemexchangeServer(): Server {
       }
       const toolName = url.pathname.slice("/tool/".length);
       const args = await readRequestJson(request);
-      const result = await invokeMemexchangeTool(toolName, args);
+      const result = await invokeAgeneticsTool(toolName, args);
       sendJson(response, 200, result);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -581,7 +581,7 @@ async function hashDirectory(dir: string, base: string): Promise<Array<{ path: s
 
 async function readIgnore(repo: string): Promise<string[]> {
   try {
-    const text = await readFile(path.join(repo, ".memexchangeignore"), "utf8");
+    const text = await readFile(path.join(repo, ".ageneticsignore"), "utf8");
     return text
       .split(/\r?\n/)
       .map((line) => line.trim())
