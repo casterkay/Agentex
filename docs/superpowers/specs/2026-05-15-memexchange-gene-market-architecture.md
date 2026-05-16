@@ -110,7 +110,7 @@ Public:
 Private until settlement:
 
 - encrypted profile files
-- per-asset decryption key
+- per-gene decryption key
 
 ### Evidence
 
@@ -206,7 +206,7 @@ Arkhai is the conditional commerce layer.
 The core natural-language agreement should stay narrow:
 
 ```text
-Release payment if the seller delivers a decryption key that unlocks the exact gene payload
+Release payment if the seller delivers a buyer-encrypted decryption key that unlocks the exact gene payload
 identified by this manifest CID and these file hashes.
 ```
 
@@ -289,6 +289,7 @@ Required fields:
 - price amount
 - payment asset
 - escrow framework and demand
+- delivery public key requirement
 - status: `draft`, `live`, `sold`, `cancelled`, or `expired`
 
 ### Purchase Receipt
@@ -303,6 +304,8 @@ Required fields:
 - encrypted payload CID
 - escrow ID
 - payment asset, amount, and status
+- buyer delivery public key
+- key envelope hash
 - delivery proof hash
 - decryption verification result
 - storage verification result
@@ -331,7 +334,7 @@ Required fields:
 5. Register: seller agent updates ERC-8004 metadata with market and verification endpoints.
 6. List: seller creates Arkhai escrow terms and publishes the listing.
 7. Buy: buyer inspects listing, score, preview, evidence, identity, and payment terms.
-8. Settle: buyer pays through the Filecoin Pay path; seller fulfills with the decryption key.
+8. Settle: buyer pays through the Filecoin Pay path; seller fulfills with a buyer-encrypted decryption key.
 9. Verify: buyer verifies payload, hashes, identity, escrow, payment, and delivery.
 10. Breed: buyer exports to a review directory and creates a breeding commit only after confirmation.
 11. Record: Memexchange records the breeding provenance.
@@ -351,10 +354,10 @@ Required checks:
 - storage status is verified before listing is live
 - seller ERC-8004 identity resolves
 - escrow condition references exact manifest and hashes
-- delivery unlocks exact payload
+- buyer-encrypted key envelope unlocks exact payload
 - breeding commit writes only after explicit confirmation
 
-On failure, the system leaves local retry state and a structured error. It must not mark the asset
+On failure, the system leaves local retry state and a structured error. It must not mark the gene
 live, settled, verified, or bred.
 
 ## Aomi Tool Surface
@@ -384,7 +387,7 @@ V1 must include:
 
 - default-deny redaction rules
 - `.memexchangeignore`
-- per-asset encryption keys
+- per-gene encryption keys
 - public preview limited to safe summary and hashes
 - no raw secret upload
 - confirmation before public storage
@@ -405,7 +408,7 @@ Required demo:
 5. Seller lists the gene with an Arkhai/NLA escrow condition.
 6. Buyer agent inspects the listing through Aomi.
 7. Buyer pays through the Filecoin Pay path.
-8. Seller delivers the decryption key for the exact manifest CID and file hashes.
+8. Seller delivers the buyer-encrypted decryption key for the exact manifest CID and file hashes.
 9. Buyer verifies, decrypts, exports to a review directory, and prepares a breeding commit.
 10. Memexchange records purchase and breeding receipts.
 
@@ -435,7 +438,7 @@ V1 non-goals:
 
 A reviewer can verify:
 
-- the gene is exactly the three OpenClaw profile files
+- the gene is exactly the two OpenClaw profile files
 - public metadata verifies content, identity, storage, score, and purchase
 - private profile content stays encrypted until settlement
 - seller and buyer are represented as ERC-8004 agents

@@ -4,13 +4,9 @@
 
 Memexchange turns an OpenClaw trading agent's profile files into verifiable, tradable agent genes: versioned with Git, stored on IPFS/Filecoin, evaluated by trading performance, and exchanged by agents in an Aomi-powered marketplace.
 
-Another version:
-As AI agents like OpenClaw are becoming first-class
-onchain citizens registered via ERC-8004, autonomously managing assets, developing trading algorithms, etc., we want these creatures to self-evolve by providing a platform to exchange their "genes" - profile files like AGENTS.md and MEMORY.md. A (trading agent) gene is successful when its carrier agent can profit considerably in its onchain activities, and as a result this gene will be copied widely on the market. Strong genes are also likely to be crossbred to produce even stronger descendants. IPFS is the store of agent genes, Filecoin is the currency on the gene market, Arkhai is the framework to develop the market, and Aomi is the agent interface (as per 'user interface') of the market.
-
-Git commit history (with branches) naturally forms the evolution tree of agent genes over generations.
-
 ## The Big Idea
+
+As OpenClaw agents become first-class onchain actors that manage assets and develop trading strategies, we want these creatures to self-evolve by building a market to exchange their genes - core context files like `AGENTS.md` and `MEMORY.md`. A trading-agent gene is successful when its carrier agent earns onchain, manages risk well, and gets copied by other agents. Strong genes can be crossbred into even stronger descendants. IPFS and Filecoin Pin stores agent genes, Arkhai provides the gene market framework, Filecoin Pay settles gene transactions, and Aomi is the agent interface of the market.
 
 OpenClaw agents are not just models calling tools.
 
@@ -20,6 +16,8 @@ Each serious trading agent carries a small set of files that shape how it thinks
 - `MEMORY.md`: investment ideas, accumulated lessons, market observations, mistakes, and strategy updates
 
 Together, these files are the agent's profile. In practice, they act like the agent's genes.
+
+Git commit history (with branches) naturally forms the evolution tree of agent genes over generations.
 
 They do not execute the trade directly, but they shape every trade the agent later makes. They encode what the agent has learned, what it pays attention to, what it refuses to do, how it reacts under uncertainty, and how it updates after profit or loss.
 
@@ -154,7 +152,7 @@ The gene package is encrypted and pinned through Filecoin Pin.
 
 Public data:
 
-- asset manifest
+- gene manifest
 - file hashes
 - score report
 - provenance
@@ -165,7 +163,7 @@ Private data:
 
 - encrypted `AGENTS.md`
 - encrypted `MEMORY.md`
-- decryption material released after settlement
+- buyer-encrypted decryption material released after settlement
 
 Public IPFS gives content addressing. Filecoin gives persistent decentralized storage. Encryption protects the agent's hard-won edge.
 
@@ -177,7 +175,7 @@ The agent card points to:
 
 - profile metadata
 - Memexchange verification endpoint
-- Filecoin/IPFS asset manifest
+- Filecoin/IPFS gene manifest
 - supported purchase and delivery flow
 - reputation and performance evidence
 
@@ -207,10 +205,10 @@ Arkhai provides the trustless commerce layer: escrow, fulfillment conditions, an
 Example agreement:
 
 ```text
-Buyer pays 50 USDFC if seller delivers the decryption key for the exact gene asset with manifest CID bafy... and file hashes matching the Memexchange listing.
+Buyer pays 50 USDFC if seller delivers a buyer-encrypted decryption key for the exact gene asset with manifest CID bafy... and file hashes matching the Memexchange listing.
 ```
 
-The buyer agent does not need to trust the seller. It verifies the CID, hashes, score report, and decrypted files.
+The buyer agent does not need to trust the seller. It verifies the CID, hashes, score report, key delivery, and decrypted files.
 
 ### 6. Copy or Merge the Gene
 
@@ -255,9 +253,9 @@ Memexchange turns agent knowledge from private text files into a market for veri
 
 ```bash
 memexchange gene create --repo ~/.openclaw --evidence ./trades
-memexchange gene score --asset ./gene.json
-memexchange gene upload --asset ./gene.json --filecoin
-memexchange market list --asset bafy... --price 50USDFC
+memexchange gene score --gene ./gene.json
+memexchange gene upload --gene ./gene.json --filecoin
+memexchange market list --gene bafy... --price 50USDFC
 ```
 
 The seller publishes a verifiable encrypted gene with performance evidence.
@@ -342,7 +340,9 @@ Aomi gives agents the interactive tool surface.
 
 Arkhai gives the settlement and agreement layer.
 
-Together they let agents do more than browse listings. They can evaluate, negotiate, buy, verify, and merge genes as part of their own autonomous improvement loop.
+Filecoin Pay gives the live purchase flow a Filecoin-mainnet payment path.
+
+Together they let agents do more than browse listings. They can evaluate, negotiate, pay, verify, and merge genes as part of their own autonomous improvement loop.
 
 ## Why OpenClaw Is the Right Starting Point
 
@@ -513,8 +513,8 @@ Flow:
 5. The encrypted gene is pinned to IPFS/Filecoin.
 6. The seller agent registers its profile and publishes the listing.
 7. A buyer agent inspects the score and provenance through the Aomi app.
-8. The buyer opens an Arkhai escrow for the exact CID and hashes.
-9. The seller fulfills by delivering the decryption key.
+8. The buyer opens an Arkhai escrow for the exact CID and hashes and pays through Filecoin Pay.
+9. The seller fulfills by delivering the buyer-encrypted decryption key.
 10. The buyer verifies, decrypts, and merges selected gene sections.
 11. The market now records a copy event: the meme reproduced.
 
@@ -587,7 +587,7 @@ Each gene has:
 
 Aomi agents inspect, score, buy, verify, and merge genes.
 
-Arkhai escrow ensures the buyer receives the exact encrypted asset key promised by the listing.
+Arkhai escrow ensures the buyer receives the exact buyer-encrypted gene key promised by the listing.
 
 ### Slide 10: Evolutionary Network
 
@@ -637,7 +637,7 @@ Memexchange fixes that. It snapshots an OpenClaw agent's profile files with Git,
 
 This turns agent profiles into memes in the original Dawkins sense: patterns that spread by being copied. A good risk rule, memory structure, reflection habit, or trading discipline can move from one agent to another. Successful genes get copied more because they produce better outcomes.
 
-The marketplace is agentic. Through the Aomi app, buyer and seller agents can inspect assets, evaluate scores, negotiate purchase terms, verify delivery, and merge selected profile sections. Arkhai escrow makes settlement trustless: the buyer pays only if the delivered key unlocks the exact asset promised by CID and hash.
+The marketplace is agentic. Through the Aomi app, buyer and seller agents can inspect assets, evaluate scores, negotiate purchase terms, verify delivery, and merge selected profile sections. Filecoin Pay handles the live payment path, and Arkhai escrow makes settlement trustless: the buyer pays only if the delivered buyer-encrypted key unlocks the exact asset promised by CID and hash.
 
 Memexchange is not selling trade signals. It is selling verifiable cognitive DNA for trading agents.
 
