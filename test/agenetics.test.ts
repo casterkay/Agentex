@@ -9,9 +9,12 @@ import { test } from "node:test";
 import {
   createGeneAsset,
   createAgeneticsServer,
+  createGeneListing,
+  createGenePurchase,
   exportGeneAsset,
   invokeAgeneticsTool,
   planExchangeRound,
+  recordGeneBreeding,
   scoreGeneAsset,
   verifyGeneAsset,
 } from "../src/index.js";
@@ -161,6 +164,115 @@ test("planExchangeRound creates a closed alpha beta gamma delta purchase loop", 
   ]);
 });
 
+test("createGeneListing writes a live listing for one exact manifest", async (t) => {
+  const repo = await fixtureRepo();
+  t.after(() => rm(repo, { recursive: true, force: true }));
+  const asset = await createGeneAsset({
+    repo,
+    agent: "alpha",
+    seller: { agentRegistry: "0xregistry", agentId: "1" },
+    key,
+  });
+  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
+
+  const listing = await createGeneListing({
+    manifestPath: asset.paths.manifest,
+    scorePath: score.path,
+    priceAmount: "50",
+    paymentAsset: "USDFC",
+    deliveryPublicKeyRequirement: "buyer_x25519_key",
+  });
+
+  assert.equal(listing.listing.schema, "agenetics.market_listing.v1");
+  assert.equal(listing.listing.status, "live");
+  assert.equal(listing.listing.seller.agentId, "1");
+  assert.equal(listing.listing.manifest_ref, `local:${asset.manifest.gene_id}`);
+  assert.equal(listing.listing.encrypted_payload_ref, asset.manifest.encrypted_payload_ref);
+  assert.match(listing.listing.escrow_demand, new RegExp(asset.manifest.gene_id));
+  assert.match(readFileSync(listing.path, "utf8"), /agenetics\.market_listing\.v1/);
+});
+
+test("createGenePurchase records escrow and delivery verification state", async (t) => {
+  const repo = await fixtureRepo();
+  t.after(() => rm(repo, { recursive: true, force: true }));
+  const asset = await createGeneAsset({
+    repo,
+    agent: "alpha",
+    seller: { agentRegistry: "0xregistry", agentId: "1" },
+    key,
+  });
+  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
+  const listing = await createGeneListing({
+    manifestPath: asset.paths.manifest,
+    scorePath: score.path,
+    priceAmount: "50",
+    paymentAsset: "USDFC",
+    deliveryPublicKeyRequirement: "buyer_x25519_key",
+  });
+
+  const purchase = await createGenePurchase({
+    listingPath: listing.path,
+    buyer: { agentRegistry: "0xregistry", agentId: "2" },
+    escrowId: "arkhai:escrow:1",
+    buyerDeliveryPublicKey: "buyer_x25519_key",
+    keyEnvelope: "encrypted-key-envelope",
+    deliveryProof: "delivered manifest and key",
+  });
+
+  assert.equal(purchase.receipt.schema, "agenetics.purchase_receipt.v1");
+  assert.equal(purchase.receipt.seller.agentId, "1");
+  assert.equal(purchase.receipt.buyer.agentId, "2");
+  assert.equal(purchase.receipt.escrow_id, "arkhai:escrow:1");
+  assert.equal(purchase.receipt.decryption_verification.status, "pending");
+  assert.equal(purchase.receipt.storage_verification.status, "local_verified");
+  assert.match(readFileSync(purchase.path, "utf8"), /agenetics\.purchase_receipt\.v1/);
+});
+
+test("recordGeneBreeding writes current buyer profile provenance", async (t) => {
+  const repo = await fixtureRepo();
+  t.after(() => rm(repo, { recursive: true, force: true }));
+  const asset = await createGeneAsset({
+    repo,
+    agent: "alpha",
+    seller: { agentRegistry: "0xregistry", agentId: "1" },
+    key,
+  });
+  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
+  const listing = await createGeneListing({
+    manifestPath: asset.paths.manifest,
+    scorePath: score.path,
+    priceAmount: "50",
+    paymentAsset: "USDFC",
+    deliveryPublicKeyRequirement: "buyer_x25519_key",
+  });
+  const purchase = await createGenePurchase({
+    listingPath: listing.path,
+    buyer: { agentRegistry: "0xregistry", agentId: "2" },
+    escrowId: "arkhai:escrow:1",
+    buyerDeliveryPublicKey: "buyer_x25519_key",
+    keyEnvelope: "encrypted-key-envelope",
+    deliveryProof: "delivered manifest and key",
+  });
+  writeFileSync(path.join(repo, "MEMORY.md"), "Bred lesson from alpha.\n");
+  execFileSync("git", ["add", "MEMORY.md"], { cwd: repo });
+  execFileSync("git", ["commit", "-m", "breed purchased gene"], { cwd: repo, stdio: "ignore" });
+
+  const breeding = await recordGeneBreeding({
+    purchaseReceiptPath: purchase.path,
+    buyerRepo: repo,
+    buyer: { agentRegistry: "0xregistry", agentId: "2" },
+    type: "selective_breed",
+    preBreedProfileHash: "pre-breed-hash",
+  });
+
+  assert.equal(breeding.receipt.schema, "agenetics.breeding_receipt.v1");
+  assert.equal(breeding.receipt.type, "selective_breed");
+  assert.equal(breeding.receipt.purchased_gene_id, asset.manifest.gene_id);
+  assert.equal(breeding.receipt.buyer_pre_breed_profile_hash, "pre-breed-hash");
+  assert.equal(breeding.receipt.resulting_file_hashes.length, 2);
+  assert.match(breeding.receipt.resulting_profile_commit, /^[a-f0-9]{40}$/);
+});
+
 test("Aomi-facing tools require confirmation before side effects", async (t) => {
   const repo = await fixtureRepo();
   t.after(() => rm(repo, { recursive: true, force: true }));
@@ -248,4 +360,43 @@ test("CLI returns compact JSON for exchange planning", () => {
       { buyer: "delta", seller: "alpha" },
     ],
   });
+});
+
+test("CLI can create a market listing receipt", async (t) => {
+  const repo = await fixtureRepo();
+  t.after(() => rm(repo, { recursive: true, force: true }));
+  const asset = await createGeneAsset({
+    repo,
+    agent: "alpha",
+    seller: { agentRegistry: "0xregistry", agentId: "1" },
+    key,
+  });
+  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
+
+  const output = execFileSync(
+    "node",
+    [
+      "--import",
+      "tsx",
+      "src/cli.ts",
+      "market",
+      "list",
+      "--manifest",
+      asset.paths.manifest,
+      "--score",
+      score.path,
+      "--price",
+      "50",
+      "--asset",
+      "USDFC",
+      "--delivery-key-requirement",
+      "buyer_x25519_key",
+      "--confirm",
+    ],
+    { cwd: path.resolve("."), encoding: "utf8" },
+  );
+
+  const parsed = JSON.parse(output) as { status: string; listing_path: string };
+  assert.equal(parsed.status, "listed");
+  assert.match(parsed.listing_path, /listing\.json$/);
 });

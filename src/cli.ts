@@ -4,8 +4,11 @@ import { Command } from "commander";
 import {
   createGeneAsset,
   createAgeneticsServer,
+  createGeneListing,
+  createGenePurchase,
   exportGeneAsset,
   planExchangeRound,
+  recordGeneBreeding,
   scoreGeneAsset,
   uploadGeneToFilecoin,
   verifyGeneAsset,
@@ -113,6 +116,99 @@ gene
     print(result);
   });
 
+const market = program.command("market").description("Create local market receipts");
+
+market
+  .command("list")
+  .requiredOption("--manifest <path>")
+  .requiredOption("--score <path>")
+  .requiredOption("--price <amount>")
+  .requiredOption("--asset <asset>")
+  .requiredOption("--delivery-key-requirement <requirement>")
+  .option("--confirm", "confirm listing creation")
+  .action(async (options) => {
+    if (options.confirm !== true) {
+      print({
+        status: "confirmation_required",
+        action: "create_gene_listing",
+        manifest_path: options.manifest,
+        score_path: options.score,
+        next_action: "rerun with --confirm",
+      });
+      return;
+    }
+    const listing = await createGeneListing({
+      manifestPath: options.manifest,
+      scorePath: options.score,
+      priceAmount: options.price,
+      paymentAsset: options.asset,
+      deliveryPublicKeyRequirement: options.deliveryKeyRequirement,
+    });
+    print({ status: "listed", listing_path: listing.path, listing: listing.listing });
+  });
+
+market
+  .command("buy")
+  .requiredOption("--listing <path>")
+  .requiredOption("--buyer-registry <address>")
+  .requiredOption("--buyer-id <id>")
+  .requiredOption("--escrow-id <id>")
+  .requiredOption("--buyer-delivery-key <key>")
+  .requiredOption("--key-envelope <text>")
+  .requiredOption("--delivery-proof <text>")
+  .option("--confirm", "confirm purchase receipt creation")
+  .action(async (options) => {
+    if (options.confirm !== true) {
+      print({
+        status: "confirmation_required",
+        action: "create_gene_purchase",
+        listing_path: options.listing,
+        next_action: "rerun with --confirm",
+      });
+      return;
+    }
+    const purchase = await createGenePurchase({
+      listingPath: options.listing,
+      buyer: { agentRegistry: options.buyerRegistry, agentId: options.buyerId },
+      escrowId: options.escrowId,
+      buyerDeliveryPublicKey: options.buyerDeliveryKey,
+      keyEnvelope: options.keyEnvelope,
+      deliveryProof: options.deliveryProof,
+    });
+    print({ status: "purchased", purchase_path: purchase.path, receipt: purchase.receipt });
+  });
+
+market
+  .command("record-breeding")
+  .requiredOption("--purchase <path>")
+  .requiredOption("--buyer-repo <path>")
+  .requiredOption("--buyer-registry <address>")
+  .requiredOption("--buyer-id <id>")
+  .requiredOption("--type <type>", "full_breed or selective_breed")
+  .requiredOption("--pre-breed-profile-hash <hash>")
+  .option("--breeding-report-ref <ref>")
+  .option("--confirm", "confirm breeding receipt creation")
+  .action(async (options) => {
+    if (options.confirm !== true) {
+      print({
+        status: "confirmation_required",
+        action: "record_gene_breeding",
+        purchase_receipt_path: options.purchase,
+        next_action: "rerun with --confirm",
+      });
+      return;
+    }
+    const breeding = await recordGeneBreeding({
+      purchaseReceiptPath: options.purchase,
+      buyerRepo: options.buyerRepo,
+      buyer: { agentRegistry: options.buyerRegistry, agentId: options.buyerId },
+      type: parseBreedingType(options.type),
+      preBreedProfileHash: options.preBreedProfileHash,
+      breedingReportRef: options.breedingReportRef,
+    });
+    print({ status: "breeding_recorded", breeding_path: breeding.path, receipt: breeding.receipt });
+  });
+
 program
   .command("exchange")
   .description("Plan exchange flows")
@@ -147,4 +243,11 @@ function requireKey(key: unknown): asserts key is string {
   if (typeof key !== "string" || key.length === 0) {
     throw new Error("encryption key required: pass --key or set AGENETICS_GENE_KEY");
   }
+}
+
+function parseBreedingType(value: string): "full_breed" | "selective_breed" {
+  if (value !== "full_breed" && value !== "selective_breed") {
+    throw new Error("type must be full_breed or selective_breed");
+  }
+  return value;
 }
