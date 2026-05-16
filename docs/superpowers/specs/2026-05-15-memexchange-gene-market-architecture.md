@@ -26,6 +26,16 @@ The stack is:
 - Arkhai: escrow and natural-language sale conditions.
 - Aomi: the agent-facing interface of the market.
 
+The local hackathon topology runs four OpenClaw instances in a Kind cluster:
+
+- alpha
+- beta
+- gamma
+- delta
+
+Each instance starts with its own profile gene, participates as both buyer and seller, and breeds
+external genes into its own Git history.
+
 ## Product Boundary
 
 Memexchange sells verifiable agent genes, not trades.
@@ -397,39 +407,41 @@ Anything uploaded unencrypted to IPFS/Filecoin is public.
 
 ## V1 Hackathon Slice
 
-V1 proves one complete market loop.
+V1 proves a four-agent exchange and evolution loop.
 
 Required demo:
 
-1. Seller OpenClaw agent has profile files and trade evidence.
-2. Memexchange packages one encrypted gene.
-3. Filecoin Pin stores the manifest, encrypted payload, preview, and score.
-4. Seller agent is registered or updated through ERC-8004 metadata.
-5. Seller lists the gene with an Arkhai/NLA escrow condition.
-6. Buyer agent inspects the listing through Aomi.
-7. Buyer pays through the Filecoin Pay path.
-8. Seller delivers the buyer-encrypted decryption key for the exact manifest CID and file hashes.
-9. Buyer verifies, decrypts, exports to a review directory, and prepares a breeding commit.
-10. Memexchange records purchase and breeding receipts.
+1. A local Kind cluster runs four isolated OpenClaw instances: alpha, beta, gamma, and delta.
+2. Each agent starts with distinct `AGENTS.md`, `MEMORY.md`, and trade evidence.
+3. Memexchange packages one encrypted starting gene per agent.
+4. Filecoin Pin stores each manifest, encrypted payload, preview, and score.
+5. Each agent is registered or updated through ERC-8004 metadata.
+6. Each agent lists its gene with an Arkhai/NLA escrow condition.
+7. Aomi coordinates an autonomous exchange round: alpha buys beta, beta buys gamma, gamma buys delta,
+   and delta buys alpha.
+8. Each seller delivers the buyer-encrypted decryption key for the exact manifest CID and file hashes.
+9. Each buyer verifies, decrypts, exports to a review directory, and breeds selected profile sections.
+10. Memexchange records purchase and breeding receipts for all four agents.
+11. The demo shows the second-generation genes and their lineage graph.
 
 Required live proof:
 
-- one seller agent
-- one buyer agent
-- one encrypted gene
-- one Filecoin Pin upload
-- one ERC-8004 registration or update
-- one Filecoin Pay wallet/payment path
-- one Arkhai/NLA escrow flow
-- one Aomi-guided buyer/seller workflow
-- one verified purchase receipt
-- one breeding receipt
+- four OpenClaw instances in Kind: alpha, beta, gamma, delta
+- four initial encrypted genes
+- four Filecoin Pin uploads
+- four ERC-8004 registrations or updates
+- four Filecoin Pay wallet/payment paths
+- four Arkhai/NLA escrow flows
+- one Aomi-guided autonomous exchange round
+- four verified purchase receipts
+- four breeding receipts
+- one lineage view showing the second-generation gene state
 
 V1 non-goals:
 
 - automated trading
 - profitability guarantees
-- broad ranking market
+- broad ranking market beyond the four-agent demo loop
 - private registry support
 - deterministic model-output replay
 - full tokenomics
@@ -446,7 +458,8 @@ A reviewer can verify:
 - Filecoin Pay participates in settlement
 - Arkhai escrow protects delivery
 - Aomi is the agent-facing interface
-- breeding into the buyer agent's own profile creates a Git descendant and receipt
+- alpha, beta, gamma, and delta each breed at least one external gene into a Git descendant
+- Memexchange records a coherent exchange graph from starting genes to second-generation genes
 
 ## References
 
@@ -456,6 +469,8 @@ A reviewer can verify:
 - Arkhai Natural Language Agreements: https://github.com/arkhai-io/natural-language-agreements
 - Arkhai Alkahest: https://github.com/arkhai-io/alkahest
 - Aomi build overview: https://aomi.dev/docs/build/overview
+- OpenClaw Kubernetes install: https://docs.openclaw.ai/install/kubernetes
 - Aomi SDK notes: `docs/knowledge/aomi-sdk.md`
+- OpenClaw Kubernetes notes: `docs/knowledge/openclaw-cluster.md`
 - Hackathon notes: `docs/knowledge/ipfs-openclaw-hackathon.md`
 - Pitch: `docs/pitch.md`

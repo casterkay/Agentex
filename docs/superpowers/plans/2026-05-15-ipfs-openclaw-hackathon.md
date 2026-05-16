@@ -1,13 +1,14 @@
-# Memexchange IPFS OpenClaw Hackathon Upgrade
+# Memexchange IPFS OpenClaw Hackathon Project Plan
 
 ## Summary
 
 A live, agentic marketplace for OpenClaw thinking-framework genes.
 
-Canonical demo path: OpenClaw MEMORY.md and AGENTS.md are packaged as a verifiable
-encrypted gene, pinned with Filecoin Pin on mainnet, registered through ERC-8004 on Base
-mainnet, scored from trade evidence, and sold through an Arkhai/NLA escrow operated by Aomi
-agents. The live submission also deploys and uses a Filecoin Pay wallet on Filecoin mainnet.
+Canonical demo path: four local OpenClaw instances, alpha, beta, gamma, and delta, run in
+a Kind cluster. Each agent packages its own MEMORY.md and AGENTS.md as a verifiable encrypted
+gene, pins it with Filecoin Pin on mainnet, registers through ERC-8004 on Base mainnet, scores it
+from trade evidence, and exchanges it through Arkhai/NLA escrows operated by Aomi agents. The live
+submission also deploys and uses Filecoin Pay wallets on Filecoin mainnet.
 
 Carry forward only the old audit/replay invariants that still support the marketplace:
 
@@ -35,29 +36,43 @@ Carry forward only the old audit/replay invariants that still support the market
     - Include source commit, parent commit, manifest hash, and redaction report hash in the public
       manifest and receipt.
     - Encrypt payload with a per-gene key; publish plaintext preview and hashes only.
+- Add a local OpenClaw cluster:
+    - Use the official Kubernetes install path with Kind.
+    - Deploy four isolated OpenClaw instances named alpha, beta, gamma, and delta.
+    - Give each instance distinct profile files, evidence, namespace, gateway token, and persisted state.
+    - Use each instance as both seller and buyer in the same exchange round.
 - Add ERC-8004 registration on Base mainnet:
     - Agent card is stored with Filecoin Pin.
     - Agent card references Aomi app endpoint, Memexchange verification endpoint, gene manifest
       CID, and supported trust mechanisms.
 - Add Filecoin Pay mainnet wallet support:
-    - Deploy or connect the seller agent's Filecoin Pay wallet on Filecoin mainnet.
+    - Deploy or connect one Filecoin Pay wallet per demo agent on Filecoin mainnet.
     - Record wallet address, funding status, and payment asset in the demo runbook.
-    - Use the Filecoin Pay wallet in the live sale/payment path, not only as setup evidence.
-- Add Arkhai/NLA escrowed sale:
-    - Buyer creates escrow with a natural-language demand requiring delivery of the decryption
+    - Use the Filecoin Pay wallets in the live exchange path, not only as setup evidence.
+- Add Arkhai/NLA escrowed exchange:
+    - Each buyer creates escrow with a natural-language demand requiring delivery of the decryption
       key for the exact gene CID/hash.
-    - Seller fulfills by submitting a delivery proof and buyer-encrypted gene key.
-    - Arkhai oracle/arbitration settles the payment.
+    - Each seller fulfills by submitting a delivery proof and buyer-encrypted gene key.
+    - Arkhai oracle/arbitration settles each payment.
 - Build the Aomi app as the primary UI:
-    - Seller agent: inspect profile, create gene, upload, score, register, list.
-    - Buyer agent: inspect preview/score, create escrow, verify delivery, decrypt, validate, export
+    - Seller side: inspect profile, create gene, upload, score, register, list.
+    - Buyer side: inspect preview/score, create escrow, verify delivery, decrypt, validate, export
       to a review directory, and then merge only after diff review.
+    - Exchange round: alpha buys beta, beta buys gamma, gamma buys delta, and delta buys alpha.
+    - Evolution view: show starting genes, purchase receipts, breeding receipts, and second-generation
+      profile commits for all four agents.
     - Aomi tools call a small Memexchange HTTP service instead of shelling directly from the UI.
     - Side-effect tools prepare or preview first, then require explicit confirmation before upload,
       registration, escrow creation, fulfillment, or merge.
 
 ## Interfaces
 
+- OpenClaw Kubernetes scripts, from the OpenClaw checkout or a vendored demo copy:
+    - scripts/k8s/create-kind.sh
+    - OPENCLAW_NAMESPACE=openclaw-alpha ./scripts/k8s/deploy.sh
+    - OPENCLAW_NAMESPACE=openclaw-beta ./scripts/k8s/deploy.sh
+    - OPENCLAW_NAMESPACE=openclaw-gamma ./scripts/k8s/deploy.sh
+    - OPENCLAW_NAMESPACE=openclaw-delta ./scripts/k8s/deploy.sh
 - CLI additions:
     - memexchange gene create --repo <openclaw_dir> --agent <id> --evidence <dir>
     - memexchange gene score --gene <manifest>
@@ -91,12 +106,13 @@ Carry forward only the old audit/replay invariants that still support the market
 
 ## 72-Hour Build Order
 
-- Day 1: Filecoin Pin mainnet storage, encrypted gene packaging, score report, verification
-  command.
-- Day 2: ERC-8004 agent card registration, Filecoin Pay wallet setup, Arkhai/NLA escrow flow,
-  buyer-key delivery proof.
-- Day 3: Aomi app integration, live end-to-end demo polish, submission docs, pitch rewrite
-  around the agentic marketplace.
+- Day 1: OpenClaw Kubernetes assets, Kind cluster, four OpenClaw namespaces, distinct
+  alpha/beta/gamma/delta profile genes, Filecoin Pin mainnet storage, encrypted gene packaging,
+  score report, verification command.
+- Day 2: ERC-8004 agent card registration for all four agents, Filecoin Pay wallet setup,
+  Arkhai/NLA escrow wrappers, buyer-key delivery proof, four-gene listing state.
+- Day 3: Aomi app integration, autonomous exchange round, second-generation breeding receipts,
+  live end-to-end demo polish, submission docs, pitch rewrite around the agentic marketplace.
 
 ## Test Plan
 - Unit tests:
@@ -107,23 +123,29 @@ Carry forward only the old audit/replay invariants that still support the market
     - Score formula is deterministic and does not depend on Aomi text.
     - Encrypted payload cannot be verified without the gene key.
     - Export writes a review directory and diff plan, not an automatic profile overwrite.
+    - Exchange planner creates a closed alpha -> beta -> gamma -> delta -> alpha round.
 - Integration tests:
+    - Kind deploy scripts can target four independent OpenClaw namespaces.
     - Filecoin Pin upload output is parsed into receipt fields.
-    - Filecoin Pay wallet configuration is present before live marketplace flows run.
+    - Filecoin Pay wallet configuration is present for all four agents before live exchange runs.
     - ERC-8004 token URI includes the pinned filename.
     - Arkhai/NLA create, fulfill, status, and collect wrappers preserve escrow IDs.
     - Aomi tool calls return compact JSON and require explicit confirmation for side effects.
 - Live acceptance:
-    - A judge can see one seller agent create a gene, one buyer agent purchase it, the
-      gene decrypt after settlement, and the final files verify against Filecoin/receipt
-      hashes.
-    - The demo shows the Filecoin Pay mainnet wallet used by the sale flow.
+    - A judge can see alpha, beta, gamma, and delta running as separate OpenClaw instances in Kind.
+    - Each agent creates, uploads, scores, registers, and lists its own encrypted gene.
+    - The demo runs one autonomous exchange round: alpha buys beta, beta buys gamma, gamma buys delta,
+      and delta buys alpha.
+    - Each purchased gene decrypts after settlement and verifies against Filecoin/receipt hashes.
+    - Each agent produces a second-generation profile commit and breeding receipt.
+    - The demo shows Filecoin Pay mainnet wallets used by the exchange flow.
 
 ## Assumptions
 
 - Live-only demo, 72-hour scope.
 - Required funded wallets/API keys are available: Filecoin mainnet FIL/USDFC, Base mainnet ETH,
   Arkhai/NLA token/RPC, Aomi API key, and LLM key for NLA oracle.
+- Local demo infrastructure uses Kind and the official OpenClaw Kubernetes install path.
 - Aomi is the agentic marketplace layer, not just a chat wrapper.
 - The public gene payload is encrypted; only preview, hashes, score, and provenance are public.
 - Monad remains optional post-hackathon infrastructure, not a required judged dependency.
@@ -132,4 +154,6 @@ Carry forward only the old audit/replay invariants that still support the market
   (https://docs.filecoin.io/builder-cookbook/filecoin-pin/faq), Filecoin Pin for ERC-8004 Agents
   (https://docs.filecoin.io/builder-cookbook/filecoin-pin/erc-8004-agent-registration), ERC-8004
   (https://eips.ethereum.org/EIPS/eip-8004), Arkhai (https://www.arkhai.io/), Arkhai NLA
-  (https://github.com/arkhai-io/natural-language-agreements).
+  (https://github.com/arkhai-io/natural-language-agreements), OpenClaw Kubernetes
+  (https://docs.openclaw.ai/install/kubernetes), OpenClaw Kubernetes notes
+  (`docs/knowledge/openclaw-cluster.md`).
