@@ -1,10 +1,10 @@
-# Agenesis IPFS OpenClaw Hackathon Upgrade
+# Memexchange IPFS OpenClaw Hackathon Upgrade
 
 ## Summary
 
 A live, agentic marketplace for OpenClaw thinking-framework assets.
 
-Canonical demo path: OpenClaw MEMORY.md, AGENTS.md, and SOUL.md are packaged as a verifiable
+Canonical demo path: OpenClaw MEMORY.md and AGENTS.md are packaged as a verifiable
 encrypted asset, pinned with Filecoin Pin on mainnet, registered through ERC-8004 on Base
 mainnet, scored from trade evidence, and sold through an Arkhai/NLA escrow operated by Aomi
 agents. The live submission also deploys and uses a Filecoin Pay wallet on Filecoin mainnet.
@@ -22,22 +22,22 @@ Carry forward only the old audit/replay invariants that still support the market
 
 ## Key Changes
 
-- Extend Agenesis storage from local:<sha256> to Filecoin Pin mainnet:
+- Extend Memexchange storage from local:<sha256> to Filecoin Pin mainnet:
     - Upload encrypted profile asset, public preview manifest, and score report.
     - Store root CID, dataset ID, piece CID/CommP, PDP status, and retrieval URLs in receipts.
     - Verify via Filecoin Pin dataset status before treating an asset as live.
 - Add a profile asset pipeline:
-    - Asset payload includes only MEMORY.md, AGENTS.md, and SOUL.md.
+    - Asset payload includes only MEMORY.md and AGENTS.md.
     - Trade intents, receipts, and decision logs are evidence inputs for scoring, not sold
       content.
-    - Apply `.agenesisignore` deny rules before packaging secrets, wallets, account exports,
+    - Apply `.memexchangeignore` deny rules before packaging secrets, wallets, account exports,
       browser profiles, private keys, `.env`, and tool caches.
     - Include source commit, parent commit, manifest hash, and redaction report hash in the public
       manifest and receipt.
     - Encrypt payload with a per-asset key; publish plaintext preview and hashes only.
 - Add ERC-8004 registration on Base mainnet:
     - Agent card is stored with Filecoin Pin.
-    - Agent card references Aomi app endpoint, Agenesis verification endpoint, asset manifest
+    - Agent card references Aomi app endpoint, Memexchange verification endpoint, asset manifest
       CID, and supported trust mechanisms.
 - Add Filecoin Pay mainnet wallet support:
     - Deploy or connect the seller agent's Filecoin Pay wallet on Filecoin mainnet.
@@ -52,19 +52,19 @@ Carry forward only the old audit/replay invariants that still support the market
     - Seller agent: inspect profile, create asset, upload, score, register, list.
     - Buyer agent: inspect preview/score, create escrow, verify delivery, decrypt, validate, export
       to a review directory, and then merge only after diff review.
-    - Aomi tools call a small Agenesis HTTP service instead of shelling directly from the UI.
+    - Aomi tools call a small Memexchange HTTP service instead of shelling directly from the UI.
     - Side-effect tools prepare or preview first, then require explicit confirmation before upload,
       registration, escrow creation, fulfillment, or merge.
 
 ## Interfaces
 
 - CLI additions:
-    - agenesis asset create --repo <openclaw_dir> --agent <id> --evidence <dir>
-    - agenesis asset score --asset <manifest>
-    - agenesis asset upload --asset <manifest> --filecoin-mainnet
-    - agenesis asset verify --manifest <cid-or-path>
-    - agenesis asset export --receipt <purchase.json> --out <review_dir>
-    - agenesis market fulfill --listing <id> --buyer-key <pubkey>
+    - memexchange asset create --repo <openclaw_dir> --agent <id> --evidence <dir>
+    - memexchange asset score --asset <manifest>
+    - memexchange asset upload --asset <manifest> --filecoin-mainnet
+    - memexchange asset verify --manifest <cid-or-path>
+    - memexchange asset export --receipt <purchase.json> --out <review_dir>
+    - memexchange market fulfill --listing <id> --buyer-key <pubkey>
 - Aomi tool surface:
     - inspect_openclaw_profile
     - create_memory_asset
@@ -75,12 +75,12 @@ Carry forward only the old audit/replay invariants that still support the market
     - verify_memory_purchase
     - prepare_memory_merge
 - New schemas:
-    - agenesis.profile_asset.v1: selected file hashes, source commit, parent commit, manifest hash,
+    - memexchange.profile_asset.v1: selected file hashes, source commit, parent commit, manifest hash,
       redaction report hash, encrypted payload CID, preview CID, score CID, Filecoin proof metadata.
-    - agenesis.asset_score.v1: deterministic metrics plus Aomi-generated valuation note.
-    - agenesis.market_listing.v1: seller agent, asset manifest CID, price, escrow UID, delivery
+    - memexchange.asset_score.v1: deterministic metrics plus Aomi-generated valuation note.
+    - memexchange.market_listing.v1: seller agent, asset manifest CID, price, escrow UID, delivery
       public-key requirement.
-    - agenesis.asset_receipt.v1: asset manifest CID, seller agent, buyer agent when known,
+    - memexchange.asset_receipt.v1: asset manifest CID, seller agent, buyer agent when known,
       Filecoin Pin proof fields, ERC-8004 identity, escrow UID, delivery proof hash, and
       verification status.
 
@@ -96,8 +96,8 @@ Carry forward only the old audit/replay invariants that still support the market
 ## Test Plan
 - Unit tests:
     - Asset packaging includes only the three agent profile files.
-    - `.agenesisignore` and default deny patterns exclude secrets before encryption.
-    - Missing SOUL.md or hash mismatch fails closed.
+    - `.memexchangeignore` and default deny patterns exclude secrets before encryption.
+    - Hash mismatch fails closed.
     - Source commit or parent commit mismatch fails closed.
     - Score formula is deterministic and does not depend on Aomi text.
     - Encrypted payload cannot be verified without the asset key.

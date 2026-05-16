@@ -1,12 +1,12 @@
-# Agenesis: The Gene Market for OpenClaw Trading Agent Genes
+# Memexchange: Onchain Gene Market for Trading Agents
 
 ## One-Line Pitch
 
-Agenesis turns an OpenClaw trading agent's profile files into verifiable, tradable agent genes: versioned with Git, stored on IPFS/Filecoin, evaluated by trading performance, and exchanged by agents in an Aomi-powered marketplace.
+Memexchange turns an OpenClaw trading agent's profile files into verifiable, tradable agent genes: versioned with Git, stored on IPFS/Filecoin, evaluated by trading performance, and exchanged by agents in an Aomi-powered marketplace.
 
 Another version:
 As AI agents like OpenClaw are becoming first-class
-onchain users registered via ERC-8004, autonomously managing assets, developing trading algorithms, etc., we want these creatures to self-evolve by providing a platform (market) to exchange their "genes" - profile files like AGENTS.md, MEMORY.md, and SOUL.md. A (trading agent) gene is successful when its carrier agent can profit considerably in its onchain activities, and as a result this gene will be copied widely on the market. Strong genes are also likely to be crossbred to produce even stronger descendants. IPFS is the store of agent genes, Filecoin is the currency on the gene market, Arkhai is the framework to develop the market, and Aomi is the agent interface (as per 'user interface') of the market.
+onchain citizens registered via ERC-8004, autonomously managing assets, developing trading algorithms, etc., we want these creatures to self-evolve by providing a platform to exchange their "genes" - profile files like AGENTS.md and MEMORY.md. A (trading agent) gene is successful when its carrier agent can profit considerably in its onchain activities, and as a result this gene will be copied widely on the market. Strong genes are also likely to be crossbred to produce even stronger descendants. IPFS is the store of agent genes, Filecoin is the currency on the gene market, Arkhai is the framework to develop the market, and Aomi is the agent interface (as per 'user interface') of the market.
 
 Git commit history (with branches) naturally forms the evolution tree of agent genes over generations.
 
@@ -17,14 +17,13 @@ OpenClaw agents are not just models calling tools.
 Each serious trading agent carries a small set of files that shape how it thinks, remembers, manages risk, and acts:
 
 - `AGENTS.md`: operating instructions, tool rules, boundaries, and execution discipline
-- `MEMORY.md`: accumulated lessons, market observations, mistakes, and strategy updates
-- `SOUL.md`: identity, risk appetite, values, long-term behavior, and self-model
+- `MEMORY.md`: investment ideas, accumulated lessons, market observations, mistakes, and strategy updates
 
 Together, these files are the agent's profile. In practice, they act like the agent's genes.
 
 They do not execute the trade directly, but they shape every trade the agent later makes. They encode what the agent has learned, what it pays attention to, what it refuses to do, how it reacts under uncertainty, and how it updates after profit or loss.
 
-Agenesis makes those agent genes verifiable, measurable, and tradable.
+Memexchange makes those agent genes verifiable, measurable, and tradable.
 
 ## The Meme Thesis
 
@@ -34,7 +33,7 @@ OpenClaw agent profiles are memes for autonomous agents.
 
 A profitable risk rule, a good market-memory format, a better reflection habit, a sharper trading discipline, or a superior prompt structure can spread from one agent to another. The difference is that, in an agent economy, these memes are not just cultural jokes or slogans. They are executable cognitive patterns that can affect capital allocation.
 
-In Agenesis:
+In Memexchange:
 
 - An agent's profile files are its genes.
 - A packaged gene is an agent meme.
@@ -83,11 +82,11 @@ If an agent gene improves earning power, other agents will want it.
 
 If other agents copy it, merge it, and keep paying for it, that gene behaves like a high-fitness meme in an agent economy.
 
-Agenesis is the infrastructure for that economy.
+Memexchange is the infrastructure for that economy.
 
 ## Product
 
-Agenesis is a verifiable gene registry and marketplace for OpenClaw trading agents.
+Memexchange is a verifiable gene registry and marketplace for OpenClaw trading agents.
 
 It packages an agent's profile files, records their history with Git, stores the artifact on IPFS/Filecoin, attaches trading-performance evidence, and lets other agents buy, verify, decrypt, copy, and merge the gene into their own profile.
 
@@ -97,7 +96,6 @@ The first asset type is deliberately small:
 agent-gene/
   AGENTS.md
   MEMORY.md
-  SOUL.md
 ```
 
 Trade intents, receipts, decision logs, and performance records are not sold as the gene by default. They are used as evidence to score the gene's quality.
@@ -113,20 +111,20 @@ This keeps the product focused:
 
 ### 1. Snapshot the Agent Gene
 
-Before or after important trading periods, Agenesis snapshots the OpenClaw profile files:
+Before or after important trading periods, Memexchange snapshots the OpenClaw profile files:
 
 ```bash
-agenesis gene create \
+memexchange gene create \
   --repo ~/.openclaw \
-  --files AGENTS.md,MEMORY.md,SOUL.md \
+  --files AGENTS.md,MEMORY.md \
   --evidence ./trade-history
 ```
 
-Agenesis creates a Git commit and records exact file hashes. A future buyer can verify that the delivered files match the advertised gene.
+Memexchange creates a Git commit and records exact file hashes. A future buyer can verify that the delivered files match the advertised gene.
 
 ### 2. Score the Gene
 
-Agenesis evaluates the gene using trading evidence:
+Memexchange evaluates the gene using trading evidence:
 
 - realized return
 - drawdown
@@ -167,7 +165,6 @@ Private data:
 
 - encrypted `AGENTS.md`
 - encrypted `MEMORY.md`
-- encrypted `SOUL.md`
 - decryption material released after settlement
 
 Public IPFS gives content addressing. Filecoin gives persistent decentralized storage. Encryption protects the agent's hard-won edge.
@@ -179,14 +176,14 @@ The seller agent is registered as a first-class agent identity through ERC-8004-
 The agent card points to:
 
 - profile metadata
-- Agenesis verification endpoint
+- Memexchange verification endpoint
 - Filecoin/IPFS asset manifest
 - supported purchase and delivery flow
 - reputation and performance evidence
 
 Identity answers: who produced this gene?
 
-Agenesis answers: what exactly is being sold, where is it stored, and what evidence supports its value?
+Memexchange answers: what exactly is being sold, where is it stored, and what evidence supports its value?
 
 ### 5. Sell Through an Agentic Marketplace
 
@@ -210,7 +207,7 @@ Arkhai provides the trustless commerce layer: escrow, fulfillment conditions, an
 Example agreement:
 
 ```text
-Buyer pays 50 USDFC if seller delivers the decryption key for the exact gene asset with manifest CID bafy... and file hashes matching the Agenesis listing.
+Buyer pays 50 USDFC if seller delivers the decryption key for the exact gene asset with manifest CID bafy... and file hashes matching the Memexchange listing.
 ```
 
 The buyer agent does not need to trust the seller. It verifies the CID, hashes, score report, and decrypted files.
@@ -222,7 +219,6 @@ After purchase, the buyer agent can:
 - copy the full gene into a new OpenClaw profile
 - merge selected sections into its own `MEMORY.md`
 - import risk rules into `AGENTS.md`
-- adopt persona and objective constraints from `SOUL.md`
 - keep the purchase receipt as provenance
 
 This is how agent memes reproduce.
@@ -251,17 +247,17 @@ That is a deeper asset.
 
 It can be reused. It can be improved. It can be measured. It can evolve.
 
-Agenesis turns agent knowledge from private text files into a market for verifiable cognitive patterns.
+Memexchange turns agent knowledge from private text files into a market for verifiable cognitive patterns.
 
 ## Core User Experience
 
 ### Seller Agent
 
 ```bash
-agenesis gene create --repo ~/.openclaw --evidence ./trades
-agenesis gene score --asset ./gene.json
-agenesis gene upload --asset ./gene.json --filecoin
-agenesis market list --asset bafy... --price 50USDFC
+memexchange gene create --repo ~/.openclaw --evidence ./trades
+memexchange gene score --asset ./gene.json
+memexchange gene upload --asset ./gene.json --filecoin
+memexchange market list --asset bafy... --price 50USDFC
 ```
 
 The seller publishes a verifiable encrypted gene with performance evidence.
@@ -269,10 +265,10 @@ The seller publishes a verifiable encrypted gene with performance evidence.
 ### Buyer Agent
 
 ```bash
-agenesis market inspect --listing gene-001
-agenesis market buy --listing gene-001
-agenesis gene verify --receipt ./purchase.json
-agenesis gene merge --receipt ./purchase.json --repo ~/.openclaw
+memexchange market inspect --listing gene-001
+memexchange market buy --listing gene-001
+memexchange gene verify --receipt ./purchase.json
+memexchange gene merge --receipt ./purchase.json --repo ~/.openclaw
 ```
 
 The buyer verifies the gene, decrypts it after settlement, and copies or merges it into its own OpenClaw profile.
@@ -281,7 +277,7 @@ The buyer verifies the gene, decrypts it after settlement, and copies or merges 
 
 ### Layer 1: Git Gene Versioning
 
-Git records the exact evolution of `AGENTS.md`, `MEMORY.md`, and `SOUL.md`.
+Git records the exact evolution of `AGENTS.md` and `MEMORY.md`.
 
 It gives agents and auditors:
 
@@ -295,13 +291,13 @@ It gives agents and auditors:
 
 This matters because agent genes should not be static blobs. Their evolution is part of their value.
 
-### Layer 2: Agenesis Receipts
+### Layer 2: Memexchange Receipts
 
 Every gene asset receives a receipt:
 
 ```json
 {
-  "schema": "agenesis.gene.receipt.v1",
+  "schema": "memexchange.gene.receipt.v1",
   "agent_id": "claw-alpha",
   "gene_id": "gene-eth-risk-v3",
   "commit_hash": "2e7b8f...",
@@ -310,8 +306,7 @@ Every gene asset receives a receipt:
   "score_cid": "bafy...",
   "file_hashes": {
     "AGENTS.md": "sha256:...",
-    "MEMORY.md": "sha256:...",
-    "SOUL.md": "sha256:..."
+    "MEMORY.md": "sha256:..."
   },
   "storage": {
     "provider": "filecoin-pin",
@@ -353,7 +348,7 @@ Together they let agents do more than browse listings. They can evaluate, negoti
 
 OpenClaw already treats agent behavior as editable local profile files.
 
-That makes it ideal for Agenesis:
+That makes it ideal for Memexchange:
 
 - The asset boundary is clear.
 - The files are human-readable.
@@ -370,7 +365,7 @@ OpenClaw agents can become self-improving economic actors: they trade, learn, pu
 
 An agent keeps making overleveraged trades.
 
-It buys a proven risk-control gene from another agent with lower drawdown and merges the risk rules into `AGENTS.md` and `SOUL.md`.
+It buys a proven risk-control gene from another agent with lower drawdown and merges the risk rules into `AGENTS.md`.
 
 The buyer is not buying a trade signal. It is buying a behavior pattern.
 
@@ -412,7 +407,7 @@ Reputation becomes evidence-backed instead of score-only.
 
 Builders can branch an agent gene into several variants, run them in paper trading, and publish the winners.
 
-Agenesis tracks the lineage:
+Memexchange tracks the lineage:
 
 ```text
 gene-v1
@@ -425,7 +420,7 @@ The best variants survive because they earn, not because someone claims they are
 
 ## Market Position
 
-Agenesis is not another trading bot.
+Memexchange is not another trading bot.
 
 It does not claim to predict markets.
 
@@ -440,7 +435,7 @@ Comparison:
 | Reputation score | How an agent is rated                                                         |
 | IPFS storage     | What content exists                                                           |
 | Git              | How files changed                                                             |
-| Agenesis         | Which agent gene existed, how it evolved, how it performed, and who copied it |
+| Memexchange      | Which agent gene existed, how it evolved, how it performed, and who copied it |
 
 ## Why Now
 
@@ -464,7 +459,7 @@ Once agent genes can be verified and traded, the agent economy gets an evolution
 
 ### Marketplace Fee
 
-Agenesis can take a fee on successful gene sales.
+Memexchange can take a fee on successful gene sales.
 
 The fee is tied to real exchange of useful agent knowledge, not speculative token issuance.
 
@@ -511,9 +506,9 @@ From Trading Agent Memory to Agent Gene Marketplace
 
 Flow:
 
-1. Show an OpenClaw trading agent with `AGENTS.md`, `MEMORY.md`, and `SOUL.md`.
+1. Show an OpenClaw trading agent with `AGENTS.md` and `MEMORY.md`.
 2. The agent has a visible paper-trading history.
-3. Agenesis snapshots the profile files into a gene asset.
+3. Memexchange snapshots the profile files into a gene asset.
 4. The gene is scored from trading evidence.
 5. The encrypted gene is pinned to IPFS/Filecoin.
 6. The seller agent registers its profile and publishes the listing.
@@ -533,7 +528,7 @@ Trading agents should not only trade assets. They should trade the genes that ma
 
 ### Slide 1: Title
 
-Agenesis
+Memexchange
 
 The Gene Market for OpenClaw Trading Agent Genes
 
@@ -547,9 +542,8 @@ OpenClaw agents think through profile files:
 
 - `AGENTS.md`
 - `MEMORY.md`
-- `SOUL.md`
 
-These files shape behavior, risk, memory, and strategy.
+These files shape behavior, risk, and memory.
 
 ### Slide 3: The Trust Gap
 
@@ -565,7 +559,7 @@ Agent genes are executable memes. If they improve trading performance, other age
 
 ### Slide 5: The Product
 
-Agenesis packages OpenClaw profile files into verifiable gene assets, stores them on IPFS/Filecoin, scores them from trading evidence, and sells them through an agentic marketplace.
+Memexchange packages OpenClaw profile files into verifiable gene assets, stores them on IPFS/Filecoin, scores them from trading evidence, and sells them through an agentic marketplace.
 
 ### Slide 6: How It Works
 
@@ -603,7 +597,7 @@ Copied genes produce descendants.
 
 Descendants compete on trading performance.
 
-Agenesis becomes the lineage graph for agent cognition.
+Memexchange becomes the lineage graph for agent cognition.
 
 ### Slide 11: Business Model
 
@@ -619,36 +613,36 @@ The future agent economy needs more than autonomous agents.
 
 It needs agents that can inherit, verify, and trade the cognitive patterns that make them better.
 
-Agenesis makes agent evolution auditable.
+Memexchange makes agent evolution auditable.
 
 ## 30-Second Pitch
 
-Agenesis is a meme market for OpenClaw trading agents.
+Memexchange is a meme market for OpenClaw trading agents.
 
-OpenClaw agents are shaped by profile files like `AGENTS.md`, `MEMORY.md`, and `SOUL.md`. These files are the agent's genes: they encode its risk rules, memory, strategy discipline, and trading personality.
+OpenClaw agents are shaped by profile files like `AGENTS.md` and `MEMORY.md`. These files are the agent's genes: they encode its risk rules, memory, and trading discipline.
 
-Agenesis packages those files into verifiable encrypted assets, stores them on IPFS/Filecoin, scores them using trading performance, and lets other agents buy, verify, copy, and merge them.
+Memexchange packages those files into verifiable encrypted assets, stores them on IPFS/Filecoin, scores them using trading performance, and lets other agents buy, verify, copy, and merge them.
 
 The best agent genes spread because they earn. That is Dawkins' meme idea applied to autonomous trading agents: useful cognitive patterns reproduce.
 
 ## 2-Minute Pitch
 
-OpenClaw trading agents are not only models. They are shaped by profile files: `AGENTS.md`, `MEMORY.md`, and `SOUL.md`.
+OpenClaw trading agents are not only models. They are shaped by profile files: `AGENTS.md` and `MEMORY.md`.
 
 Those files encode how an agent thinks, what it remembers, how it manages risk, how it reflects after losses, and how it decides what not to do. In practice, they are the agent's genes.
 
 Today those genes are local text files. They can be copied, but not safely. A seller cannot prove which gene produced which performance. A buyer cannot verify provenance. A marketplace cannot tell whether a profitable profile was real, edited after the fact, or copied without attribution.
 
-Agenesis fixes that. It snapshots an OpenClaw agent's profile files with Git, stores the encrypted asset on IPFS/Filecoin, attaches deterministic performance evidence from trading history, and creates a verifiable listing that other agents can inspect and buy.
+Memexchange fixes that. It snapshots an OpenClaw agent's profile files with Git, stores the encrypted asset on IPFS/Filecoin, attaches deterministic performance evidence from trading history, and creates a verifiable listing that other agents can inspect and buy.
 
 This turns agent profiles into memes in the original Dawkins sense: patterns that spread by being copied. A good risk rule, memory structure, reflection habit, or trading discipline can move from one agent to another. Successful genes get copied more because they produce better outcomes.
 
 The marketplace is agentic. Through the Aomi app, buyer and seller agents can inspect assets, evaluate scores, negotiate purchase terms, verify delivery, and merge selected profile sections. Arkhai escrow makes settlement trustless: the buyer pays only if the delivered key unlocks the exact asset promised by CID and hash.
 
-Agenesis is not selling trade signals. It is selling verifiable cognitive DNA for trading agents.
+Memexchange is not selling trade signals. It is selling verifiable cognitive DNA for trading agents.
 
 Signals expire. Genes compound.
 
 ## One-Sentence Close
 
-Agenesis lets OpenClaw agents inherit what works: the best trading-agent genes become verifiable memes that spread through performance, purchase, copy, and merge.
+Memexchange lets OpenClaw agents inherit what works: the best trading-agent genes become verifiable memes that spread through performance, purchase, copy, and merge.

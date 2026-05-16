@@ -1,10 +1,10 @@
-# Agenesis Gene Market Architecture
+# Memexchange Gene Market Architecture
 
 Date: 2026-05-15
 
 ## Summary
 
-Agenesis is a gene market for onchain AI agents.
+Memexchange is a gene market for onchain AI agents.
 
 In v1, the market serves OpenClaw trading agents. A gene is the small profile bundle that shapes an
 agent's behavior:
@@ -12,7 +12,6 @@ agent's behavior:
 ```text
 AGENTS.md
 MEMORY.md
-SOUL.md
 ```
 
 These files are the agent's genotype. The carrier agent's onchain behavior is the phenotype. A gene
@@ -29,7 +28,7 @@ The stack is:
 
 ## Product Boundary
 
-Agenesis sells verifiable agent genes, not trades.
+Memexchange sells verifiable agent genes, not trades.
 
 It is not a trading bot, signal marketplace, prompt gallery, background memory watcher, hidden trade
 hook, generic document store, or deterministic model-output replay system.
@@ -51,9 +50,8 @@ For OpenClaw agents, those behavior patterns live in profile files:
 
 - `AGENTS.md`: operating rules, tool discipline, risk boundaries.
 - `MEMORY.md`: lessons, market observations, mistakes, strategy updates.
-- `SOUL.md`: identity, objectives, risk appetite, long-term constraints.
 
-Agenesis creates selection pressure:
+Memexchange creates selection pressure:
 
 - performance creates demand
 - demand creates purchases
@@ -78,7 +76,7 @@ Agent roles:
 - validator: verifies a claim, artifact, score, delivery, or breeding record
 
 Agents are referenced by `{agentRegistry, agentId}`. Their registration file should advertise the
-Aomi app endpoint, Agenesis verification endpoint, wallet/payment metadata, and supported trust
+Aomi app endpoint, Memexchange verification endpoint, wallet/payment metadata, and supported trust
 mechanisms.
 
 ### Gene
@@ -89,7 +87,6 @@ V1 gene contents are exactly:
 
 - `AGENTS.md`
 - `MEMORY.md`
-- `SOUL.md`
 
 Trade logs, decisions, receipts, and portfolio history are evidence. They are not sold as the gene by
 default.
@@ -173,15 +170,15 @@ buyer agent's pre-breed profile state, breeding inputs, resulting commit, and re
 
 ERC-8004 is the identity and trust layer.
 
-Agenesis uses:
+Memexchange uses:
 
 - Identity Registry to identify carriers, sellers, buyers, and validators.
-- Registration files to point to Aomi, Agenesis, Filecoin/IPFS metadata, wallets, and trust methods.
+- Registration files to point to Aomi, Memexchange, Filecoin/IPFS metadata, wallets, and trust methods.
 - Reputation Registry for buyer feedback, seller reliability, breeding success, and gene reputation.
 - Validation Registry for independent checks of gene integrity, scoring evidence, delivery, or
   breeding records.
 
-Registration proves identity, not quality. Agenesis must bind identity to content, evidence, market
+Registration proves identity, not quality. Memexchange must bind identity to content, evidence, market
 receipts, and validation records.
 
 ### IPFS and Filecoin Pin
@@ -213,7 +210,7 @@ Release payment if the seller delivers a decryption key that unlocks the exact g
 identified by this manifest CID and these file hashes.
 ```
 
-Agenesis records escrow ID, fulfillment proof, arbitration/oracle result, and collection status in
+Memexchange records escrow ID, fulfillment proof, arbitration/oracle result, and collection status in
 the purchase receipt.
 
 ### Aomi
@@ -228,12 +225,12 @@ Side effects must follow prepare-first execution:
 1. preview the action
 2. show the exact identifiers and risks
 3. require explicit confirmation
-4. execute through the Agenesis service or host wallet flow
+4. execute through the Memexchange service or host wallet flow
 5. verify the result before reporting success
 
-### Agenesis Service
+### Memexchange Service
 
-The Agenesis service owns the market logic:
+The Memexchange service owns the market logic:
 
 - profile inspection
 - gene packaging
@@ -254,12 +251,12 @@ Aomi calls the service. The Aomi UI must not shell directly into local commands.
 
 Required fields:
 
-- schema: `agenesis.gene_manifest.v1`
+- schema: `memexchange.gene_manifest.v1`
 - gene ID
 - gene format: `openclaw.profile.v1`
 - seller agent `{agentRegistry, agentId}`
 - source commit and parent commit
-- file hashes for `AGENTS.md`, `MEMORY.md`, `SOUL.md`
+- file hashes for `AGENTS.md`, `MEMORY.md`
 - encrypted payload CID
 - preview CID
 - score report CID
@@ -271,7 +268,7 @@ Required fields:
 
 Required fields:
 
-- schema: `agenesis.gene_score.v1`
+- schema: `memexchange.gene_score.v1`
 - gene ID
 - evidence CIDs
 - deterministic metrics
@@ -283,7 +280,7 @@ Required fields:
 
 Required fields:
 
-- schema: `agenesis.market_listing.v1`
+- schema: `memexchange.market_listing.v1`
 - listing ID
 - seller agent
 - manifest CID
@@ -298,7 +295,7 @@ Required fields:
 
 Required fields:
 
-- schema: `agenesis.purchase_receipt.v1`
+- schema: `memexchange.purchase_receipt.v1`
 - listing ID
 - buyer agent
 - seller agent
@@ -315,7 +312,7 @@ Required fields:
 
 Required fields:
 
-- schema: `agenesis.breeding_receipt.v1`
+- schema: `memexchange.breeding_receipt.v1`
 - type: `full_breed` or `selective_breed`
 - buyer agent
 - purchased gene ID
@@ -328,20 +325,20 @@ Required fields:
 ## Lifecycle
 
 1. Inspect: seller agent selects profile files and evidence.
-2. Package: Agenesis hashes files, applies redaction rules, encrypts payload, writes manifest.
-3. Score: Agenesis computes deterministic metrics and optional valuation note.
-4. Store: Agenesis uploads manifest, payload, preview, score, and evidence to IPFS/Filecoin Pin.
+2. Package: Memexchange hashes files, applies redaction rules, encrypts payload, writes manifest.
+3. Score: Memexchange computes deterministic metrics and optional valuation note.
+4. Store: Memexchange uploads manifest, payload, preview, score, and evidence to IPFS/Filecoin Pin.
 5. Register: seller agent updates ERC-8004 metadata with market and verification endpoints.
 6. List: seller creates Arkhai escrow terms and publishes the listing.
 7. Buy: buyer inspects listing, score, preview, evidence, identity, and payment terms.
 8. Settle: buyer pays through the Filecoin Pay path; seller fulfills with the decryption key.
 9. Verify: buyer verifies payload, hashes, identity, escrow, payment, and delivery.
 10. Breed: buyer exports to a review directory and creates a breeding commit only after confirmation.
-11. Record: Agenesis records the breeding provenance.
+11. Record: Memexchange records the breeding provenance.
 
 ## Verification Rules
 
-Agenesis fails closed when proof is missing or inconsistent.
+Memexchange fails closed when proof is missing or inconsistent.
 
 Required checks:
 
@@ -386,7 +383,7 @@ finishes.
 V1 must include:
 
 - default-deny redaction rules
-- `.agenesisignore`
+- `.memexchangeignore`
 - per-asset encryption keys
 - public preview limited to safe summary and hashes
 - no raw secret upload
@@ -402,7 +399,7 @@ V1 proves one complete market loop.
 Required demo:
 
 1. Seller OpenClaw agent has profile files and trade evidence.
-2. Agenesis packages one encrypted gene.
+2. Memexchange packages one encrypted gene.
 3. Filecoin Pin stores the manifest, encrypted payload, preview, and score.
 4. Seller agent is registered or updated through ERC-8004 metadata.
 5. Seller lists the gene with an Arkhai/NLA escrow condition.
@@ -410,7 +407,7 @@ Required demo:
 7. Buyer pays through the Filecoin Pay path.
 8. Seller delivers the decryption key for the exact manifest CID and file hashes.
 9. Buyer verifies, decrypts, exports to a review directory, and prepares a breeding commit.
-10. Agenesis records purchase and breeding receipts.
+10. Memexchange records purchase and breeding receipts.
 
 Required live proof:
 
