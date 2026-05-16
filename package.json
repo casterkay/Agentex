@@ -1,0 +1,26 @@
+{
+  "name": "memexchange",
+  "version": "0.1.0",
+  "description": "Verifiable OpenClaw profile gene market core",
+  "type": "module",
+  "bin": {
+    "memexchange": "./src/cli.ts"
+  },
+  "scripts": {
+    "test": "node --import tsx --test test/memexchange.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "filecoin-pin": "^0.21.0",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.11",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

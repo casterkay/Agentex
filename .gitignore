@@ -1,11 +1,11 @@
 .history/
 .agents/
+.npm-cache/
 node_modules/
 tmp/
 dist/
 out/
 cache/
-demo/.work/
-replay/
-broadcast/
+_ref/
 .DS_Store
+*.pyc

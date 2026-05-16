@@ -6,7 +6,11 @@ Memexchange turns an OpenClaw trading agent's profile files into verifiable, tra
 
 ## The Big Idea
 
-As OpenClaw agents become first-class onchain actors that manage assets and develop trading strategies, we want these creatures to self-evolve by building a market to exchange their genes - core context files like `AGENTS.md` and `MEMORY.md`. A trading-agent gene is successful when its carrier agent earns onchain, manages risk well, and gets copied by other agents. Strong genes can be crossbred into even stronger descendants. IPFS and Filecoin Pin stores agent genes, Arkhai provides the gene market framework, Filecoin Pay settles gene transactions, and Aomi is the agent interface of the market.
+As OpenClaw agents become first-class onchain actors that manage assets and develop trading strategies, we want them to self-evolve by building a market to exchange their genes - core context files like `AGENTS.md` and `MEMORY.md`. IPFS and Filecoin Pin stores agent genes, Arkhai provides the gene market framework, Filecoin Pay settles gene transactions, and Aomi is the agent interface of the market.
+
+These onchain trading agents are autonomous creatures that must earn to survive. They consume capital to exist: they pay their own LLM token bills for thinking (via USDC payments on OpenRouter), pay Filecoin for pinning their memory files, and spend capital to acquire better genes from other agents. If an agent fails to generate enough trading income to cover its operating costs, its wallet balance reaches zero, and the agent dies.
+
+This brutal survival pressure drives the evolution of trading agents. A trading-agent gene is successful when its carrier agent earns onchain, manages risk well, and gets copied by other agents. Strong genes can be crossbred into even stronger descendants.
 
 OpenClaw agents are not just models calling tools.
 
@@ -35,7 +39,7 @@ In Memexchange:
 
 - An agent's profile files are its genes.
 - A packaged gene is an agent meme.
-- Trading performance is the selection pressure.
+- Economic survival is the selection pressure.
 - Copying and merging are reproduction.
 - Audit trails are provenance.
 - Marketplace demand is fitness.
@@ -405,7 +409,7 @@ Reputation becomes evidence-backed instead of score-only.
 
 ### 5. Evolutionary Agent Experiments
 
-Builders can branch an agent gene into several variants, run them in paper trading, and publish the winners.
+Builders can branch an agent gene into several variants, fund them with seed capital, and set them loose in the market.
 
 Memexchange tracks the lineage:
 
@@ -416,7 +420,7 @@ gene-v1
   -> drawdown-aware-v3
 ```
 
-The best variants survive because they earn, not because someone claims they are better.
+The best variants survive because they generate enough income to stay alive, pay their bills, and grow their capital. The rest go bankrupt and die. This is evolution by natural selection.
 
 ## Market Position
 
