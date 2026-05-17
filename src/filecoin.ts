@@ -4,7 +4,7 @@ import path from "node:path";
 import { stableJson } from "./shared.js";
 
 export interface FilecoinUploadReceipt {
-  schema: "agenetics.filecoin_upload.v1";
+  schema: "agentex.filecoin_upload.v1";
   manifest_path: string;
   uploads: Array<{
     name: string;
@@ -45,11 +45,11 @@ export async function uploadGeneToFilecoin(input: {
   const carData = await readFile(carPath);
   const result = await executeUpload(synapse, carData, rootCid, {
     logger: pino({ level: "silent" }),
-    contextId: "agenetics-gene",
-    metadata: { source: "agenetics", manifest: path.basename(input.manifestPath) },
+    contextId: "agentex-gene",
+    metadata: { source: "agentex", manifest: path.basename(input.manifestPath) },
   });
   const receipt: FilecoinUploadReceipt = {
-    schema: "agenetics.filecoin_upload.v1",
+    schema: "agentex.filecoin_upload.v1",
     manifest_path: input.manifestPath,
     uploads: [
       {

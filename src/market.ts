@@ -13,7 +13,7 @@ import {
 } from "./shared.js";
 
 export interface MarketListing {
-  schema: "agenetics.market_listing.v1";
+  schema: "agentex.market_listing.v1";
   listing_id: string;
   seller: AgentRef;
   manifest_ref: string;
@@ -30,7 +30,7 @@ export interface MarketListing {
 }
 
 export interface PurchaseReceipt {
-  schema: "agenetics.purchase_receipt.v1";
+  schema: "agentex.purchase_receipt.v1";
   listing_id: string;
   buyer: AgentRef;
   seller: AgentRef;
@@ -52,7 +52,7 @@ export interface PurchaseReceipt {
 }
 
 export interface BreedingReceipt {
-  schema: "agenetics.breeding_receipt.v1";
+  schema: "agentex.breeding_receipt.v1";
   type: "full_breed" | "selective_breed";
   buyer_agent: AgentRef;
   purchased_gene_id: string;
@@ -94,7 +94,7 @@ export async function createGeneListing(input: {
     }),
   ).slice(0, 32);
   const listing: MarketListing = {
-    schema: "agenetics.market_listing.v1",
+    schema: "agentex.market_listing.v1",
     listing_id: listingId,
     seller: manifest.seller,
     manifest_ref: manifestRef,
@@ -131,7 +131,7 @@ export async function createGenePurchase(input: {
     throw new Error(`listing is not live: ${listing.status}`);
   }
   const receipt: PurchaseReceipt = {
-    schema: "agenetics.purchase_receipt.v1",
+    schema: "agentex.purchase_receipt.v1",
     listing_id: listing.listing_id,
     buyer: input.buyer,
     seller: listing.seller,
@@ -172,7 +172,7 @@ export async function recordGeneBreeding(input: {
     throw new Error("buyer repo must have a resulting profile commit");
   }
   const receipt: BreedingReceipt = {
-    schema: "agenetics.breeding_receipt.v1",
+    schema: "agentex.breeding_receipt.v1",
     type: input.type,
     buyer_agent: input.buyer,
     purchased_gene_id: manifest.gene_id,

@@ -8,11 +8,11 @@ import { test } from "node:test";
 
 import {
   createGeneAsset,
-  createAgeneticsServer,
+  createAgentexServer,
   createGeneListing,
   createGenePurchase,
   exportGeneAsset,
-  invokeAgeneticsTool,
+  invokeAgentexTool,
   planExchangeRound,
   recordGeneBreeding,
   scoreGeneAsset,
@@ -22,7 +22,7 @@ import {
 const key = "0123456789abcdef0123456789abcdef";
 
 async function fixtureRepo(): Promise<string> {
-  const dir = mkdtempSync(path.join(tmpdir(), "agenetics-"));
+  const dir = mkdtempSync(path.join(tmpdir(), "agentex-"));
   execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
   execFileSync("git", ["config", "user.email", "agent@example.test"], { cwd: dir });
   execFileSync("git", ["config", "user.name", "Agent"], { cwd: dir });
@@ -52,7 +52,7 @@ test("createGeneAsset packages only profile files and encrypts the payload", asy
     asset.manifest.files.map((file) => file.path),
     ["AGENTS.md", "MEMORY.md"],
   );
-  assert.equal(asset.manifest.schema, "agenetics.gene_manifest.v1");
+  assert.equal(asset.manifest.schema, "agentex.gene_manifest.v1");
   assert.equal(asset.manifest.gene_format, "openclaw.profile.v1");
   assert.match(asset.manifest.encrypted_payload_ref, /^local:[a-f0-9]{64}$/);
   assert.equal(asset.redaction.blocked.length, 0);
@@ -183,13 +183,13 @@ test("createGeneListing writes a live listing for one exact manifest", async (t)
     deliveryPublicKeyRequirement: "buyer_x25519_key",
   });
 
-  assert.equal(listing.listing.schema, "agenetics.market_listing.v1");
+  assert.equal(listing.listing.schema, "agentex.market_listing.v1");
   assert.equal(listing.listing.status, "live");
   assert.equal(listing.listing.seller.agentId, "1");
   assert.equal(listing.listing.manifest_ref, `local:${asset.manifest.gene_id}`);
   assert.equal(listing.listing.encrypted_payload_ref, asset.manifest.encrypted_payload_ref);
   assert.match(listing.listing.escrow_demand, new RegExp(asset.manifest.gene_id));
-  assert.match(readFileSync(listing.path, "utf8"), /agenetics\.market_listing\.v1/);
+  assert.match(readFileSync(listing.path, "utf8"), /agentex\.market_listing\.v1/);
 });
 
 test("createGenePurchase records escrow and delivery verification state", async (t) => {
@@ -219,13 +219,13 @@ test("createGenePurchase records escrow and delivery verification state", async 
     deliveryProof: "delivered manifest and key",
   });
 
-  assert.equal(purchase.receipt.schema, "agenetics.purchase_receipt.v1");
+  assert.equal(purchase.receipt.schema, "agentex.purchase_receipt.v1");
   assert.equal(purchase.receipt.seller.agentId, "1");
   assert.equal(purchase.receipt.buyer.agentId, "2");
   assert.equal(purchase.receipt.escrow_id, "arkhai:escrow:1");
   assert.equal(purchase.receipt.decryption_verification.status, "pending");
   assert.equal(purchase.receipt.storage_verification.status, "local_verified");
-  assert.match(readFileSync(purchase.path, "utf8"), /agenetics\.purchase_receipt\.v1/);
+  assert.match(readFileSync(purchase.path, "utf8"), /agentex\.purchase_receipt\.v1/);
 });
 
 test("recordGeneBreeding writes current buyer profile provenance", async (t) => {
@@ -265,7 +265,7 @@ test("recordGeneBreeding writes current buyer profile provenance", async (t) => 
     preBreedProfileHash: "pre-breed-hash",
   });
 
-  assert.equal(breeding.receipt.schema, "agenetics.breeding_receipt.v1");
+  assert.equal(breeding.receipt.schema, "agentex.breeding_receipt.v1");
   assert.equal(breeding.receipt.type, "selective_breed");
   assert.equal(breeding.receipt.purchased_gene_id, asset.manifest.gene_id);
   assert.equal(breeding.receipt.buyer_pre_breed_profile_hash, "pre-breed-hash");
@@ -277,7 +277,7 @@ test("Aomi-facing tools require confirmation before side effects", async (t) => 
   const repo = await fixtureRepo();
   t.after(() => rm(repo, { recursive: true, force: true }));
 
-  const preview = await invokeAgeneticsTool("create_gene_asset", {
+  const preview = await invokeAgentexTool("create_gene_asset", {
     repo,
     agent: "alpha",
     seller: { agentRegistry: "0xregistry", agentId: "1" },
@@ -287,7 +287,7 @@ test("Aomi-facing tools require confirmation before side effects", async (t) => 
   assert.equal(preview.status, "confirmation_required");
   assert.equal(preview.next_action, "call create_gene_asset again with confirm:true");
 
-  const created = await invokeAgeneticsTool("create_gene_asset", {
+  const created = await invokeAgentexTool("create_gene_asset", {
     repo,
     agent: "alpha",
     seller: { agentRegistry: "0xregistry", agentId: "1" },
@@ -309,7 +309,7 @@ test("Filecoin upload tool does not invent success without wallet configuration"
     key,
   });
 
-  const result = await invokeAgeneticsTool("upload_gene_to_filecoin", {
+  const result = await invokeAgentexTool("upload_gene_to_filecoin", {
     manifestPath: asset.paths.manifest,
     confirm: true,
   });
@@ -319,7 +319,7 @@ test("Filecoin upload tool does not invent success without wallet configuration"
 });
 
 test("HTTP tool server exposes compact JSON tool calls", async (t) => {
-  const server = createAgeneticsServer();
+  const server = createAgentexServer();
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();

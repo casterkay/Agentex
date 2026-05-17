@@ -1,13 +1,13 @@
 {
-  "name": "agenetics",
+  "name": "agentex",
   "version": "0.1.0",
   "description": "Verifiable OpenClaw profile gene market core",
   "type": "module",
   "bin": {
-    "agenetics": "./src/cli.ts"
+    "agentex": "./src/cli.ts"
   },
   "scripts": {
-    "test": "node --import tsx --test test/agenetics.test.ts",
+    "test": "node --import tsx --test test/agentex.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "engines": {

@@ -17,7 +17,7 @@ export interface GeneFile {
 }
 
 export interface GeneManifest {
-  schema: "agenetics.gene_manifest.v1";
+  schema: "agentex.gene_manifest.v1";
   gene_id: string;
   gene_format: "openclaw.profile.v1";
   agent: string;

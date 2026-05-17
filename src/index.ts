@@ -19,5 +19,5 @@ export {
   inspectGeneListing,
   recordGeneBreeding,
 } from "./market.js";
-export { type AgeneticsToolResult, invokeAgeneticsTool, planExchangeRound } from "./tools.js";
-export { createAgeneticsServer } from "./server.js";
+export { type AgentexToolResult, invokeAgentexTool, planExchangeRound } from "./tools.js";
+export { createAgentexServer } from "./server.js";

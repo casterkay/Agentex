@@ -15,7 +15,7 @@ import {
 } from "./market.js";
 import { type AgentRef, PROFILE_FILES } from "./shared.js";
 
-export type AgeneticsToolResult = Record<string, unknown>;
+export type AgentexToolResult = Record<string, unknown>;
 
 export function planExchangeRound(agents: string[]): Array<{ buyer: string; seller: string }> {
   if (agents.length < 2) {
@@ -27,10 +27,10 @@ export function planExchangeRound(agents: string[]): Array<{ buyer: string; sell
   }));
 }
 
-export async function invokeAgeneticsTool(
+export async function invokeAgentexTool(
   name: string,
   args: Record<string, unknown>,
-): Promise<AgeneticsToolResult> {
+): Promise<AgentexToolResult> {
   switch (name) {
     case "inspect_openclaw_profile": {
       const profile = await inspectOpenclawProfile({ repo: stringArg(args, "repo") });

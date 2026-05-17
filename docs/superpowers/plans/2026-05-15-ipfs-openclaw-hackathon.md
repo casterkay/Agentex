@@ -1,4 +1,4 @@
-# Agenetics IPFS OpenClaw Hackathon Project Plan
+# Agentex IPFS OpenClaw Hackathon Project Plan
 
 ## Summary
 
@@ -23,7 +23,7 @@ Carry forward only the old audit/replay invariants that still support the market
 
 ## Key Changes
 
-- Extend Agenetics storage from local:<sha256> to Filecoin Pin mainnet:
+- Extend Agentex storage from local:<sha256> to Filecoin Pin mainnet:
     - Upload encrypted gene payload, public preview manifest, and score report.
     - Store root CID, dataset ID, piece CID/CommP, PDP status, and retrieval URLs in receipts.
     - Verify via Filecoin Pin dataset status before treating a gene as live.
@@ -31,7 +31,7 @@ Carry forward only the old audit/replay invariants that still support the market
     - Gene payload includes only MEMORY.md and AGENTS.md.
     - Trade intents, receipts, and decision logs are evidence inputs for scoring, not sold
       content.
-    - Apply `.ageneticsignore` deny rules before packaging secrets, wallets, account exports,
+    - Apply `.agentexignore` deny rules before packaging secrets, wallets, account exports,
       browser profiles, private keys, `.env`, and tool caches.
     - Include source commit, parent commit, manifest hash, and redaction report hash in the public
       manifest and receipt.
@@ -43,7 +43,7 @@ Carry forward only the old audit/replay invariants that still support the market
     - Use each instance as both seller and buyer in the same exchange round.
 - Add ERC-8004 registration on Base mainnet:
     - Agent card is stored with Filecoin Pin.
-    - Agent card references Aomi app endpoint, Agenetics verification endpoint, gene manifest
+    - Agent card references Aomi app endpoint, Agentex verification endpoint, gene manifest
       CID, and supported trust mechanisms.
 - Add Filecoin Pay mainnet wallet support:
     - Deploy or connect one Filecoin Pay wallet per demo agent on Filecoin mainnet.
@@ -61,7 +61,7 @@ Carry forward only the old audit/replay invariants that still support the market
     - Exchange round: alpha buys beta, beta buys gamma, gamma buys delta, and delta buys alpha.
     - Evolution view: show starting genes, purchase receipts, breeding receipts, and second-generation
       profile commits for all four agents.
-    - Aomi tools call a small Agenetics HTTP service instead of shelling directly from the UI.
+    - Aomi tools call a small Agentex HTTP service instead of shelling directly from the UI.
     - Side-effect tools prepare or preview first, then require explicit confirmation before upload,
       registration, escrow creation, fulfillment, or merge.
 
@@ -74,12 +74,12 @@ Carry forward only the old audit/replay invariants that still support the market
     - OPENCLAW_NAMESPACE=openclaw-gamma ./scripts/k8s/deploy.sh
     - OPENCLAW_NAMESPACE=openclaw-delta ./scripts/k8s/deploy.sh
 - CLI additions:
-    - agenetics gene create --repo <openclaw_dir> --agent <id> --evidence <dir>
-    - agenetics gene score --gene <manifest>
-    - agenetics gene upload --gene <manifest> --filecoin-mainnet
-    - agenetics gene verify --manifest <cid-or-path>
-    - agenetics gene export --receipt <purchase.json> --out <review_dir>
-    - agenetics market fulfill --listing <id> --buyer-key <pubkey>
+    - agentex gene create --repo <openclaw_dir> --agent <id> --evidence <dir>
+    - agentex gene score --gene <manifest>
+    - agentex gene upload --gene <manifest> --filecoin-mainnet
+    - agentex gene verify --manifest <cid-or-path>
+    - agentex gene export --receipt <purchase.json> --out <review_dir>
+    - agentex market fulfill --listing <id> --buyer-key <pubkey>
 - Aomi tool surface:
     - inspect_openclaw_profile
     - create_gene_asset
@@ -93,15 +93,15 @@ Carry forward only the old audit/replay invariants that still support the market
     - prepare_gene_breed
     - record_gene_breeding
 - New schemas:
-    - agenetics.gene_manifest.v1: selected file hashes, source commit, parent commit, manifest hash,
+    - agentex.gene_manifest.v1: selected file hashes, source commit, parent commit, manifest hash,
       redaction report hash, encrypted payload CID, preview CID, score CID, Filecoin proof metadata.
-    - agenetics.gene_score.v1: deterministic metrics plus Aomi-generated valuation note.
-    - agenetics.market_listing.v1: seller agent, gene manifest CID, price, escrow UID, delivery
+    - agentex.gene_score.v1: deterministic metrics plus Aomi-generated valuation note.
+    - agentex.market_listing.v1: seller agent, gene manifest CID, price, escrow UID, delivery
       public-key requirement.
-    - agenetics.purchase_receipt.v1: gene manifest CID, seller agent, buyer agent,
+    - agentex.purchase_receipt.v1: gene manifest CID, seller agent, buyer agent,
       Filecoin Pin proof fields, ERC-8004 identity, escrow UID, buyer key envelope hash,
       delivery proof hash, and verification status.
-    - agenetics.breeding_receipt.v1: purchased gene, buyer pre-breed profile hash,
+    - agentex.breeding_receipt.v1: purchased gene, buyer pre-breed profile hash,
       resulting profile commit, resulting file hashes, and breeding report CID.
 
 ## 72-Hour Build Order
@@ -117,7 +117,7 @@ Carry forward only the old audit/replay invariants that still support the market
 ## Test Plan
 - Unit tests:
     - Gene packaging includes only the two agent profile files.
-    - `.ageneticsignore` and default deny patterns exclude secrets before encryption.
+    - `.agentexignore` and default deny patterns exclude secrets before encryption.
     - Hash mismatch fails closed.
     - Source commit or parent commit mismatch fails closed.
     - Score formula is deterministic and does not depend on Aomi text.

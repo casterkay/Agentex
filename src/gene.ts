@@ -36,13 +36,13 @@ export interface GeneAsset {
 }
 
 export interface RedactionReport {
-  schema: "agenetics.redaction_report.v1";
+  schema: "agentex.redaction_report.v1";
   checked: string[];
   blocked: string[];
 }
 
 export interface ScoreReport {
-  schema: "agenetics.gene_score.v1";
+  schema: "agentex.gene_score.v1";
   gene_id: string;
   evidence_hashes: string[];
   metrics: {
@@ -74,7 +74,7 @@ export async function createGeneAsset(input: {
   outDir?: string;
 }): Promise<GeneAsset> {
   const repo = path.resolve(input.repo);
-  const outputRoot = input.outDir ? path.resolve(input.outDir) : path.join(repo, ".agenetics", "genes");
+  const outputRoot = input.outDir ? path.resolve(input.outDir) : path.join(repo, ".agentex", "genes");
   const ignored = await readIgnore(repo);
   const files = await Promise.all(
     PROFILE_FILES.map(async (relativePath) => {
@@ -98,20 +98,20 @@ export async function createGeneAsset(input: {
   );
 
   const redaction: RedactionReport = {
-    schema: "agenetics.redaction_report.v1",
+    schema: "agentex.redaction_report.v1",
     checked: files.map((file) => file.path),
     blocked: [],
   };
   const redactionText = stableJson(redaction);
   const payload = {
-    schema: "agenetics.encrypted_gene_payload.v1",
+    schema: "agentex.encrypted_gene_payload.v1",
     files,
   };
   const encrypted = encrypt(Buffer.from(stableJson(payload), "utf8"), input.key);
   const encryptedText = stableJson(encrypted);
   const encryptedHash = sha256(encryptedText);
   const preview = {
-    schema: "agenetics.gene_preview.v1",
+    schema: "agentex.gene_preview.v1",
     agent: input.agent,
     files: files.map(({ content: _content, ...file }) => file),
   };
@@ -131,7 +131,7 @@ export async function createGeneAsset(input: {
   await mkdir(root, { recursive: true });
 
   const manifest: GeneManifest = {
-    schema: "agenetics.gene_manifest.v1",
+    schema: "agentex.gene_manifest.v1",
     gene_id: geneId,
     gene_format: "openclaw.profile.v1",
     agent: input.agent,
@@ -188,7 +188,7 @@ export async function scoreGeneAsset(input: {
     Math.round(manifest.files.length * 20 + evidence.length * 12 + Math.min(evidenceBytes, 4000) / 100),
   );
   const report: ScoreReport = {
-    schema: "agenetics.gene_score.v1",
+    schema: "agentex.gene_score.v1",
     gene_id: manifest.gene_id,
     evidence_hashes: evidence.map((item) => item.sha256).sort(),
     metrics: {
@@ -272,7 +272,7 @@ export async function exportGeneAsset(input: {
   await writeFile(
     path.join(input.out, "DIFF_PLAN.md"),
     [
-      "# Agenetics Gene Review",
+      "# Agentex Gene Review",
       "",
       "Review exported profile files before breeding them into an agent profile.",
       "",
@@ -308,7 +308,7 @@ function normalizeKey(key: string): Buffer {
 
 async function readIgnore(repo: string): Promise<string[]> {
   try {
-    const text = await readFile(path.join(repo, ".ageneticsignore"), "utf8");
+    const text = await readFile(path.join(repo, ".agentexignore"), "utf8");
     return text
       .split(/\r?\n/)
       .map((line) => line.trim())

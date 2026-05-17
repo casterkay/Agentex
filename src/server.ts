@@ -1,9 +1,9 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { stableJson } from "./shared.js";
-import { invokeAgeneticsTool } from "./tools.js";
+import { invokeAgentexTool } from "./tools.js";
 
-export function createAgeneticsServer(): Server {
+export function createAgentexServer(): Server {
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -13,7 +13,7 @@ export function createAgeneticsServer(): Server {
       }
       const toolName = url.pathname.slice("/tool/".length);
       const args = await readRequestJson(request);
-      const result = await invokeAgeneticsTool(toolName, args);
+      const result = await invokeAgentexTool(toolName, args);
       sendJson(response, 200, result);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

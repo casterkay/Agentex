@@ -1,6 +1,6 @@
-# Agenetics Setup Guide
+# Agentex Setup Guide
 
-This guide sets up the local Agenetics core, the four-agent OpenClaw demo topology, and the
+This guide sets up the local Agentex core, the four-agent OpenClaw demo topology, and the
 external services needed for a live hackathon run.
 
 The current repo automates local gene packaging, scoring, Filecoin Pin upload, listing receipts,
@@ -42,7 +42,7 @@ profiles, wallet exports, or `.env` files.
 Set the local gene encryption key:
 
 ```bash
-export AGENETICS_GENE_KEY="$(openssl rand -hex 32)"
+export AGENTEX_GENE_KEY="$(openssl rand -hex 32)"
 ```
 
 Set Filecoin Pin credentials only when you are ready to upload:
@@ -119,7 +119,7 @@ Use separate terminal sessions and ports for multiple agents.
 
 ## 4. Agent Profile Inputs
 
-Agenetics packages exactly two profile files from each agent repo:
+Agentex packages exactly two profile files from each agent repo:
 
 ```text
 AGENTS.md
@@ -137,10 +137,10 @@ MEMORY.md
 evidence/
 ```
 
-Create `.ageneticsignore` in every agent profile repo:
+Create `.agentexignore` in every agent profile repo:
 
 ```bash
-cat > .ageneticsignore <<'EOF'
+cat > .agentexignore <<'EOF'
 .env
 *.pem
 *.key
@@ -157,16 +157,16 @@ EOF
 Commit the starting profile before packaging:
 
 ```bash
-git add AGENTS.md MEMORY.md .ageneticsignore
+git add AGENTS.md MEMORY.md .agentexignore
 git commit -m "seed agent profile"
 ```
 
 ## 5. Local Gene Dry Run
 
-Return to the Agenetics repo:
+Return to the Agentex repo:
 
 ```bash
-cd /Users/tcai/Projects/Agenetics
+cd /Users/tcai/Projects/Agentex
 ```
 
 Create one gene:
@@ -178,7 +178,7 @@ node --import tsx src/cli.ts gene create \
   --seller-registry "eip155:8453:0xREGISTRY" \
   --seller-id "1" \
   --evidence "$ALPHA_PROFILE_REPO/evidence" \
-  --key "$AGENETICS_GENE_KEY"
+  --key "$AGENTEX_GENE_KEY"
 ```
 
 The command prints a `manifest_path`. Use it for the next steps:
@@ -200,7 +200,7 @@ Verify the encrypted payload:
 ```bash
 node --import tsx src/cli.ts gene verify \
   --manifest "$ALPHA_MANIFEST" \
-  --key "$AGENETICS_GENE_KEY"
+  --key "$AGENTEX_GENE_KEY"
 ```
 
 Export to a review directory:
@@ -208,8 +208,8 @@ Export to a review directory:
 ```bash
 node --import tsx src/cli.ts gene export \
   --manifest "$ALPHA_MANIFEST" \
-  --out /tmp/agenetics-alpha-review \
-  --key "$AGENETICS_GENE_KEY"
+  --out /tmp/agentex-alpha-review \
+  --key "$AGENTEX_GENE_KEY"
 ```
 
 Do this for alpha, beta, gamma, and delta before attempting live exchange.
@@ -241,7 +241,7 @@ Do not mark a gene live in the demo until upload and storage status are verified
 For each agent, prepare an agent registration file that points to:
 
 - the Aomi app endpoint
-- the Agenetics verification endpoint
+- the Agentex verification endpoint
 - the Filecoin/IPFS manifest URI
 - the payment wallet metadata
 - supported trust mechanisms
@@ -303,7 +303,7 @@ For each exchange:
    buyer delivery public key.
 2. Seller fulfills with the buyer-encrypted decryption key and delivery proof.
 3. Oracle/arbitration settles payment.
-4. Agenetics records the escrow ID, key envelope hash, delivery proof hash, and verification status
+4. Agentex records the escrow ID, key envelope hash, delivery proof hash, and verification status
    in the purchase receipt.
 
 The local CLI currently records the receipt after the external escrow step. It does not yet create
@@ -322,9 +322,9 @@ The live demo should show Filecoin Pay participating in settlement, not just wal
 
 ## 11. Aomi App Setup
 
-The Aomi app should call the Agenetics HTTP service, not shell directly from the UI.
+The Aomi app should call the Agentex HTTP service, not shell directly from the UI.
 
-Start the local Agenetics tool server:
+Start the local Agentex tool server:
 
 ```bash
 node --import tsx src/cli.ts serve --host 127.0.0.1 --port 8787
@@ -388,7 +388,7 @@ For each leg:
 6. Buyer exports the purchased gene to a review directory.
 7. Buyer manually reviews the diff.
 8. Buyer commits a full or selective breeding change.
-9. Agenetics records the breeding receipt.
+9. Agentex records the breeding receipt.
 
 Record a breeding receipt:
 
@@ -436,7 +436,7 @@ cd "$OPENCLAW_REPO"
 Delete temporary review directories:
 
 ```bash
-rm -rf /tmp/agenetics-*-review
+rm -rf /tmp/agentex-*-review
 ```
 
 Keep receipts, manifests, score reports, and public addresses needed for judging. Do not keep private
@@ -444,7 +444,7 @@ keys or decrypted purchased profile files in the repo.
 
 ## References
 
-- Architecture: `docs/superpowers/specs/2026-05-15-agenetics-gene-market-architecture.md`
+- Architecture: `docs/superpowers/specs/2026-05-15-agentex-gene-market-architecture.md`
 - Build plan: `docs/superpowers/plans/2026-05-15-ipfs-openclaw-hackathon.md`
 - Filecoin Pin notes: `docs/knowledge/filecoin-pin.md`
 - Filecoin wallet notes: `docs/knowledge/filecoin-wallet.md`

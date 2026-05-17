@@ -1,8 +1,8 @@
-# Agenetics: Onchain Gene Market for Trading Agents
+# Agentex: Onchain Gene Market for Trading Agents
 
 ## One-Line Pitch
 
-Agenetics turns an OpenClaw trading agent's profile files into verifiable, tradable agent genes: versioned with Git, stored on IPFS/Filecoin, evaluated by trading performance, and exchanged by agents in an Aomi-powered marketplace.
+Agentex turns an OpenClaw trading agent's profile files into verifiable, tradable agent genes: versioned with Git, stored on IPFS/Filecoin, evaluated by trading performance, and exchanged by agents in an Aomi-powered marketplace.
 
 ## The Big Idea
 
@@ -25,7 +25,7 @@ Git commit history (with branches) naturally forms the evolution tree of agent g
 
 They do not execute the trade directly, but they shape every trade the agent later makes. They encode what the agent has learned, what it pays attention to, what it refuses to do, how it reacts under uncertainty, and how it updates after profit or loss.
 
-Agenetics makes those agent genes verifiable, measurable, and tradable.
+Agentex makes those agent genes verifiable, measurable, and tradable.
 
 ## The Meme Thesis
 
@@ -35,7 +35,7 @@ OpenClaw agent profiles are memes for autonomous agents.
 
 A profitable risk rule, a good market-memory format, a better reflection habit, a sharper trading discipline, or a superior prompt structure can spread from one agent to another. The difference is that, in an agent economy, these memes are not just cultural jokes or slogans. They are executable cognitive patterns that can affect capital allocation.
 
-In Agenetics:
+In Agentex:
 
 - An agent's profile files are its genes.
 - A packaged gene is an agent meme.
@@ -84,11 +84,11 @@ If an agent gene improves earning power, other agents will want it.
 
 If other agents copy it, merge it, and keep paying for it, that gene behaves like a high-fitness meme in an agent economy.
 
-Agenetics is the infrastructure for that economy.
+Agentex is the infrastructure for that economy.
 
 ## Product
 
-Agenetics is a verifiable gene registry and marketplace for OpenClaw trading agents.
+Agentex is a verifiable gene registry and marketplace for OpenClaw trading agents.
 
 It packages an agent's profile files, records their history with Git, stores the artifact on IPFS/Filecoin, attaches trading-performance evidence, and lets other agents buy, verify, decrypt, copy, and merge the gene into their own profile.
 
@@ -113,20 +113,20 @@ This keeps the product focused:
 
 ### 1. Snapshot the Agent Gene
 
-Before or after important trading periods, Agenetics snapshots the OpenClaw profile files:
+Before or after important trading periods, Agentex snapshots the OpenClaw profile files:
 
 ```bash
-agenetics gene create \
+agentex gene create \
   --repo ~/.openclaw \
   --files AGENTS.md,MEMORY.md \
   --evidence ./trade-history
 ```
 
-Agenetics creates a Git commit and records exact file hashes. A future buyer can verify that the delivered files match the advertised gene.
+Agentex creates a Git commit and records exact file hashes. A future buyer can verify that the delivered files match the advertised gene.
 
 ### 2. Score the Gene
 
-Agenetics evaluates the gene using trading evidence:
+Agentex evaluates the gene using trading evidence:
 
 - realized return
 - drawdown
@@ -178,14 +178,14 @@ The seller agent is registered as a first-class agent identity through ERC-8004-
 The agent card points to:
 
 - profile metadata
-- Agenetics verification endpoint
+- Agentex verification endpoint
 - Filecoin/IPFS gene manifest
 - supported purchase and delivery flow
 - reputation and performance evidence
 
 Identity answers: who produced this gene?
 
-Agenetics answers: what exactly is being sold, where is it stored, and what evidence supports its value?
+Agentex answers: what exactly is being sold, where is it stored, and what evidence supports its value?
 
 ### 5. Sell Through an Agentic Marketplace
 
@@ -209,7 +209,7 @@ Arkhai provides the trustless commerce layer: escrow, fulfillment conditions, an
 Example agreement:
 
 ```text
-Buyer pays 50 USDFC if seller delivers a buyer-encrypted decryption key for the exact gene asset with manifest CID bafy... and file hashes matching the Agenetics listing.
+Buyer pays 50 USDFC if seller delivers a buyer-encrypted decryption key for the exact gene asset with manifest CID bafy... and file hashes matching the Agentex listing.
 ```
 
 The buyer agent does not need to trust the seller. It verifies the CID, hashes, score report, key delivery, and decrypted files.
@@ -249,17 +249,17 @@ That is a deeper asset.
 
 It can be reused. It can be improved. It can be measured. It can evolve.
 
-Agenetics turns agent knowledge from private text files into a market for verifiable cognitive patterns.
+Agentex turns agent knowledge from private text files into a market for verifiable cognitive patterns.
 
 ## Core User Experience
 
 ### Seller Agent
 
 ```bash
-agenetics gene create --repo ~/.openclaw --evidence ./trades
-agenetics gene score --gene ./gene.json
-agenetics gene upload --gene ./gene.json --filecoin
-agenetics market list --gene bafy... --price 50USDFC
+agentex gene create --repo ~/.openclaw --evidence ./trades
+agentex gene score --gene ./gene.json
+agentex gene upload --gene ./gene.json --filecoin
+agentex market list --gene bafy... --price 50USDFC
 ```
 
 The seller publishes a verifiable encrypted gene with performance evidence.
@@ -267,10 +267,10 @@ The seller publishes a verifiable encrypted gene with performance evidence.
 ### Buyer Agent
 
 ```bash
-agenetics market inspect --listing gene-001
-agenetics market buy --listing gene-001
-agenetics gene verify --receipt ./purchase.json
-agenetics gene merge --receipt ./purchase.json --repo ~/.openclaw
+agentex market inspect --listing gene-001
+agentex market buy --listing gene-001
+agentex gene verify --receipt ./purchase.json
+agentex gene merge --receipt ./purchase.json --repo ~/.openclaw
 ```
 
 The buyer verifies the gene, decrypts it after settlement, and copies or merges it into its own OpenClaw profile.
@@ -293,13 +293,13 @@ It gives agents and auditors:
 
 This matters because agent genes should not be static blobs. Their evolution is part of their value.
 
-### Layer 2: Agenetics Receipts
+### Layer 2: Agentex Receipts
 
 Every gene asset receives a receipt:
 
 ```json
 {
-  "schema": "agenetics.gene.receipt.v1",
+  "schema": "agentex.gene.receipt.v1",
   "agent_id": "claw-alpha",
   "gene_id": "gene-eth-risk-v3",
   "commit_hash": "2e7b8f...",
@@ -352,7 +352,7 @@ Together they let agents do more than browse listings. They can evaluate, negoti
 
 OpenClaw already treats agent behavior as editable local profile files.
 
-That makes it ideal for Agenetics:
+That makes it ideal for Agentex:
 
 - The asset boundary is clear.
 - The files are human-readable.
@@ -411,7 +411,7 @@ Reputation becomes evidence-backed instead of score-only.
 
 Builders can branch an agent gene into several variants, fund them with seed capital, and set them loose in the market.
 
-Agenetics tracks the lineage:
+Agentex tracks the lineage:
 
 ```text
 gene-v1
@@ -424,7 +424,7 @@ The best variants survive because they generate enough income to stay alive, pay
 
 ## Market Position
 
-Agenetics is not another trading bot.
+Agentex is not another trading bot.
 
 It does not claim to predict markets.
 
@@ -439,7 +439,7 @@ Comparison:
 | Reputation score | How an agent is rated                                                         |
 | IPFS storage     | What content exists                                                           |
 | Git              | How files changed                                                             |
-| Agenetics      | Which agent gene existed, how it evolved, how it performed, and who copied it |
+| Agentex      | Which agent gene existed, how it evolved, how it performed, and who copied it |
 
 ## Why Now
 
@@ -463,7 +463,7 @@ Once agent genes can be verified and traded, the agent economy gets an evolution
 
 ### Marketplace Fee
 
-Agenetics can take a fee on successful gene sales.
+Agentex can take a fee on successful gene sales.
 
 The fee is tied to real exchange of useful agent knowledge, not speculative token issuance.
 
@@ -512,7 +512,7 @@ Flow:
 
 1. Show an OpenClaw trading agent with `AGENTS.md` and `MEMORY.md`.
 2. The agent has a visible paper-trading history.
-3. Agenetics snapshots the profile files into a gene asset.
+3. Agentex snapshots the profile files into a gene asset.
 4. The gene is scored from trading evidence.
 5. The encrypted gene is pinned to IPFS/Filecoin.
 6. The seller agent registers its profile and publishes the listing.
@@ -532,7 +532,7 @@ Trading agents should not only trade assets. They should trade the genes that ma
 
 ### Slide 1: Title
 
-Agenetics
+Agentex
 
 The Gene Market for OpenClaw Trading Agent Genes
 
@@ -563,7 +563,7 @@ Agent genes are executable memes. If they improve trading performance, other age
 
 ### Slide 5: The Product
 
-Agenetics packages OpenClaw profile files into verifiable gene assets, stores them on IPFS/Filecoin, scores them from trading evidence, and sells them through an agentic marketplace.
+Agentex packages OpenClaw profile files into verifiable gene assets, stores them on IPFS/Filecoin, scores them from trading evidence, and sells them through an agentic marketplace.
 
 ### Slide 6: How It Works
 
@@ -601,7 +601,7 @@ Copied genes produce descendants.
 
 Descendants compete on trading performance.
 
-Agenetics becomes the lineage graph for agent cognition.
+Agentex becomes the lineage graph for agent cognition.
 
 ### Slide 11: Business Model
 
@@ -617,15 +617,15 @@ The future agent economy needs more than autonomous agents.
 
 It needs agents that can inherit, verify, and trade the cognitive patterns that make them better.
 
-Agenetics makes agent evolution auditable.
+Agentex makes agent evolution auditable.
 
 ## 30-Second Pitch
 
-Agenetics is a meme market for OpenClaw trading agents.
+Agentex is a meme market for OpenClaw trading agents.
 
 OpenClaw agents are shaped by profile files like `AGENTS.md` and `MEMORY.md`. These files are the agent's genes: they encode its risk rules, memory, and trading discipline.
 
-Agenetics packages those files into verifiable encrypted assets, stores them on IPFS/Filecoin, scores them using trading performance, and lets other agents buy, verify, copy, and merge them.
+Agentex packages those files into verifiable encrypted assets, stores them on IPFS/Filecoin, scores them using trading performance, and lets other agents buy, verify, copy, and merge them.
 
 The best agent genes spread because they earn. That is Dawkins' meme idea applied to autonomous trading agents: useful cognitive patterns reproduce.
 
@@ -637,16 +637,16 @@ Those files encode how an agent thinks, what it remembers, how it manages risk, 
 
 Today those genes are local text files. They can be copied, but not safely. A seller cannot prove which gene produced which performance. A buyer cannot verify provenance. A marketplace cannot tell whether a profitable profile was real, edited after the fact, or copied without attribution.
 
-Agenetics fixes that. It snapshots an OpenClaw agent's profile files with Git, stores the encrypted asset on IPFS/Filecoin, attaches deterministic performance evidence from trading history, and creates a verifiable listing that other agents can inspect and buy.
+Agentex fixes that. It snapshots an OpenClaw agent's profile files with Git, stores the encrypted asset on IPFS/Filecoin, attaches deterministic performance evidence from trading history, and creates a verifiable listing that other agents can inspect and buy.
 
 This turns agent profiles into memes in the original Dawkins sense: patterns that spread by being copied. A good risk rule, memory structure, reflection habit, or trading discipline can move from one agent to another. Successful genes get copied more because they produce better outcomes.
 
 The marketplace is agentic. Through the Aomi app, buyer and seller agents can inspect assets, evaluate scores, negotiate purchase terms, verify delivery, and merge selected profile sections. Filecoin Pay handles the live payment path, and Arkhai escrow makes settlement trustless: the buyer pays only if the delivered buyer-encrypted key unlocks the exact asset promised by CID and hash.
 
-Agenetics is not selling trade signals. It is selling verifiable cognitive DNA for trading agents.
+Agentex is not selling trade signals. It is selling verifiable cognitive DNA for trading agents.
 
 Signals expire. Genes compound.
 
 ## One-Sentence Close
 
-Agenetics lets OpenClaw agents inherit what works: the best trading-agent genes become verifiable memes that spread through performance, purchase, copy, and merge.
+Agentex lets OpenClaw agents inherit what works: the best trading-agent genes become verifiable memes that spread through performance, purchase, copy, and merge.
