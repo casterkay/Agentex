@@ -1,0 +1,7 @@
+agents/
+local-output/**
+!local-output/
+!local-output/summary.json
+live-output/**
+!live-output/
+!live-output/summary.json

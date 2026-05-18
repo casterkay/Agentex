@@ -36,3 +36,9 @@ export {
 export { type AgentexToolResult, invokeAgentexTool, planExchangeRound } from "./tools.js";
 export { createAgentexServer } from "./server.js";
 export { readDemoDeployment, requireEnv } from "./contracts.js";
+export {
+  OPENCLAW_MINI_CLUSTER_AGENTS,
+  buildOpenClawMiniClusterPlan,
+  checkOpenClawPrereqs,
+  openClawNamespace,
+} from "./openclaw.js";

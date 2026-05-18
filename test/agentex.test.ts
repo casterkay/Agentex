@@ -25,6 +25,11 @@ import {
   verifyExecutionProof,
 } from "../src/index.js";
 import { loadDotEnv } from "../src/env.js";
+import {
+  OPENCLAW_MINI_CLUSTER_AGENTS,
+  buildOpenClawMiniClusterPlan,
+  openClawNamespace,
+} from "../src/openclaw.js";
 import { compileContracts } from "../scripts/compile-contracts.js";
 
 const key = "0123456789abcdef0123456789abcdef";
@@ -134,6 +139,56 @@ test("loadDotEnv reads .env files without overriding existing shell values", asy
   assert.equal(process.env.AGENTEX_CHAIN_ID, "8453");
   assert.equal(process.env.AGENTEX_EXPERIENCE_KEY, "quoted-key");
   assert.equal(process.env.PRIVATE_KEY, "0xabc");
+});
+
+test("OpenClaw mini cluster plan uses three bounded Monad testnet agents", () => {
+  const plan = buildOpenClawMiniClusterPlan({
+    openclawRepo: "/tmp/openclaw",
+    agentexServiceUrl: "http://127.0.0.1:8787",
+    monadRpcUrl: "https://rpc.testnet.monad.xyz",
+    chainId: "10143",
+    tradeBudgetMon: "0.01",
+  });
+
+  assert.deepEqual(OPENCLAW_MINI_CLUSTER_AGENTS, ["alpha", "beta", "gamma"]);
+  assert.equal(openClawNamespace("alpha"), "openclaw-alpha");
+  assert.equal(plan.agents.length, 3);
+  assert.deepEqual(plan.exchange_round, [
+    { buyer: "alpha", seller: "beta" },
+    { buyer: "beta", seller: "gamma" },
+    { buyer: "gamma", seller: "alpha" },
+  ]);
+  assert.equal(plan.safety.chain_id, "10143");
+  assert.equal(plan.safety.trade_budget_mon, "0.01");
+  assert.equal(plan.namespaces[0]?.deploy_command, "OPENCLAW_NAMESPACE=openclaw-alpha /tmp/openclaw/scripts/k8s/deploy.sh --show-token");
+});
+
+test("OpenClaw mini cluster plan rejects non-Monad-testnet chain IDs", () => {
+  assert.throws(
+    () =>
+      buildOpenClawMiniClusterPlan({
+        openclawRepo: "/tmp/openclaw",
+        agentexServiceUrl: "http://127.0.0.1:8787",
+        monadRpcUrl: "https://rpc.testnet.monad.xyz",
+        chainId: "1",
+        tradeBudgetMon: "0.01",
+      }),
+    /Monad testnet/i,
+  );
+});
+
+test("OpenClaw mini cluster plan requires a bounded trade budget", () => {
+  assert.throws(
+    () =>
+      buildOpenClawMiniClusterPlan({
+        openclawRepo: "/tmp/openclaw",
+        agentexServiceUrl: "http://127.0.0.1:8787",
+        monadRpcUrl: "https://rpc.testnet.monad.xyz",
+        chainId: "10143",
+        tradeBudgetMon: "0",
+      }),
+    /trade budget/i,
+  );
 });
 
 test("createTradeExperienceAsset extracts exactly one encrypted trade experience", async (t) => {

@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "contracts:compile": "node --import tsx scripts/compile-contracts.ts",
     "deploy:demo": "node --import tsx scripts/deploy-demo-contracts.ts",
+    "openclaw:deploy": "node --import tsx scripts/deploy-openclaw-kind.ts",
     "demo:local": "node --import tsx scripts/run-local-v1.ts",
     "demo:live": "node --import tsx scripts/run-live-v1.ts"
   },

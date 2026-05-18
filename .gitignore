@@ -13,6 +13,7 @@ artifacts/
 demo/local-output/
 demo/live-output/
 demo/agents/*/.openclaw/imports/
+deployments/
 _ref/
 .DS_Store
 *.pyc
