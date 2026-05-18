@@ -6,6 +6,10 @@ tmp/
 dist/
 out/
 cache/
+artifacts/
+demo/local-output/
+demo/live-output/
+demo/agents/
 _ref/
 .DS_Store
 *.pyc

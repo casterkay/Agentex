@@ -1,19 +1,20 @@
+import { uploadExperienceToFilecoin } from "./filecoin.js";
 import {
-  createGeneAsset,
-  exportGeneAsset,
-  inspectOpenclawProfile,
-  scoreGeneAsset,
-  verifyGeneAsset,
-} from "./gene.js";
-import { uploadGeneToFilecoin } from "./filecoin.js";
+  createTradeExperienceAsset,
+  inspectOpenclawActivity,
+  prepareExperienceIngestion,
+} from "./experience.js";
 import {
-  type BreedingReceipt,
-  createGeneListing,
-  createGenePurchase,
-  inspectGeneListing,
-  recordGeneBreeding,
+  createExperienceListing,
+  createExperiencePurchase,
+  inspectExperienceListing,
+  recordExperienceFeedback,
+  verifyExperienceDelivery,
 } from "./market.js";
-import { type AgentRef, PROFILE_FILES } from "./shared.js";
+import { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
+import { createExecutionProof } from "./venue.js";
+import { type AgentRef, readJson } from "./shared.js";
+import { type ExecutionProof, type ExperienceManifest, type TradeExperience } from "./schemas.js";
 
 export type AgentexToolResult = Record<string, unknown>;
 
@@ -27,164 +28,137 @@ export function planExchangeRound(agents: string[]): Array<{ buyer: string; sell
   }));
 }
 
-export async function invokeAgentexTool(
-  name: string,
-  args: Record<string, unknown>,
-): Promise<AgentexToolResult> {
+export async function invokeAgentexTool(name: string, args: Record<string, unknown>): Promise<AgentexToolResult> {
   switch (name) {
-    case "inspect_openclaw_profile": {
-      const profile = await inspectOpenclawProfile({ repo: stringArg(args, "repo") });
-      return profile;
-    }
-    case "create_gene_asset": {
-      const repo = stringArg(args, "repo");
-      const agent = stringArg(args, "agent");
-      const seller = agentRefArg(args.seller, "seller");
+    case "inspect_openclaw_activity":
+      return inspectOpenclawActivity({
+        activityPath: stringArg(args, "activityPath"),
+        memoryPath: optionalStringArg(args, "memoryPath"),
+      });
+    case "extract_trade_experience":
+    case "encrypt_trade_experience": {
       if (args.confirm !== true) {
         return {
           status: "confirmation_required",
-          action: "create_gene_asset",
-          profile_files: [...PROFILE_FILES],
-          repo,
-          agent,
-          next_action: "call create_gene_asset again with confirm:true",
+          action: name,
+          activity_path: stringArg(args, "activityPath"),
+          next_action: `call ${name} again with confirm:true`,
         };
       }
-      const asset = await createGeneAsset({
-        repo,
-        agent,
-        seller,
+      const asset = await createTradeExperienceAsset({
+        activityPath: stringArg(args, "activityPath"),
+        memoryPath: stringArg(args, "memoryPath"),
+        sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
         key: stringArg(args, "key"),
-        evidenceDir: optionalStringArg(args, "evidenceDir"),
         outDir: optionalStringArg(args, "outDir"),
       });
       return {
         status: "created",
-        gene_id: asset.manifest.gene_id,
+        experience_id: asset.experience.experience_id,
         manifest_path: asset.paths.manifest,
-        encrypted_payload_ref: asset.manifest.encrypted_payload_ref,
-        files: asset.manifest.files,
+        encrypted_experience_cid: asset.manifest.encrypted_experience_cid,
       };
     }
-    case "score_gene_asset": {
-      const score = await scoreGeneAsset({
-        manifestPath: stringArg(args, "manifestPath"),
-        evidenceDir: optionalStringArg(args, "evidenceDir"),
-        valuationNote: optionalStringArg(args, "valuationNote"),
-      });
-      return { status: "scored", score_path: score.path, report: score.report };
-    }
-    case "create_gene_listing": {
-      const manifestPath = stringArg(args, "manifestPath");
-      const scorePath = stringArg(args, "scorePath");
+    case "upload_experience_to_filecoin":
       if (args.confirm !== true) {
         return {
           status: "confirmation_required",
-          action: "create_gene_listing",
-          manifest_path: manifestPath,
-          score_path: scorePath,
-          next_action: "call create_gene_listing again with confirm:true",
-        };
-      }
-      const listing = await createGeneListing({
-        manifestPath,
-        scorePath,
-        priceAmount: stringArg(args, "priceAmount"),
-        paymentAsset: stringArg(args, "paymentAsset"),
-        deliveryPublicKeyRequirement: stringArg(args, "deliveryPublicKeyRequirement"),
-      });
-      return { status: "listed", listing_path: listing.path, listing: listing.listing };
-    }
-    case "inspect_gene_listing": {
-      const listing = await inspectGeneListing({ listingPath: stringArg(args, "listingPath") });
-      return { status: "ready", listing };
-    }
-    case "create_gene_purchase": {
-      const listingPath = stringArg(args, "listingPath");
-      const buyer = agentRefArg(args.buyer, "buyer");
-      if (args.confirm !== true) {
-        return {
-          status: "confirmation_required",
-          action: "create_gene_purchase",
-          listing_path: listingPath,
-          buyer,
-          next_action: "call create_gene_purchase again with confirm:true",
-        };
-      }
-      const purchase = await createGenePurchase({
-        listingPath,
-        buyer,
-        escrowId: stringArg(args, "escrowId"),
-        buyerDeliveryPublicKey: stringArg(args, "buyerDeliveryPublicKey"),
-        keyEnvelope: stringArg(args, "keyEnvelope"),
-        deliveryProof: stringArg(args, "deliveryProof"),
-      });
-      return { status: "purchased", purchase_path: purchase.path, receipt: purchase.receipt };
-    }
-    case "verify_gene_delivery": {
-      const verification = await verifyGeneAsset({
-        manifestPath: stringArg(args, "manifestPath"),
-        key: stringArg(args, "key"),
-      });
-      return { status: verification.ok ? "verified" : "failed", ...verification };
-    }
-    case "upload_gene_to_filecoin": {
-      if (args.confirm !== true) {
-        return {
-          status: "confirmation_required",
-          action: "upload_gene_to_filecoin",
+          action: name,
           manifest_path: stringArg(args, "manifestPath"),
-          next_action: "call upload_gene_to_filecoin again with confirm:true",
+          risk: "uploads encrypted artifact metadata to public Filecoin/IPFS storage",
+          next_action: `call ${name} again with confirm:true`,
         };
       }
-      return uploadGeneToFilecoin({
+      return uploadExperienceToFilecoin({
         manifestPath: stringArg(args, "manifestPath"),
         privateKey: optionalStringArg(args, "privateKey"),
         network: networkArg(args),
       });
+    case "create_execution_proof":
+      return {
+        status: "created",
+        proof: createExecutionProof({
+          trade: (await readJson<TradeExperience>(stringArg(args, "experiencePath"))),
+          decoderId: stringArg(args, "decoderId"),
+          decoderKey: stringArg(args, "decoderKey"),
+        }),
+      };
+    case "prepare_registry_attestation": {
+      const prepared = prepareRegistryAttestation({
+        manifest: await readJson<ExperienceManifest>(stringArg(args, "manifestPath")),
+        executionProof: await readJson<ExecutionProof>(stringArg(args, "executionProofPath")),
+        sellerNonce: stringArg(args, "sellerNonce"),
+        attestationDeadline: stringArg(args, "attestationDeadline"),
+        registryAddress: stringArg(args, "registryAddress"),
+      });
+      return { status: "prepared", ...prepared };
     }
-    case "prepare_gene_breed": {
+    case "submit_registry_attestation":
       if (args.confirm !== true) {
         return {
           status: "confirmation_required",
-          action: "prepare_gene_breed",
-          out: stringArg(args, "out"),
-          next_action: "call prepare_gene_breed again with confirm:true",
+          action: name,
+          next_action: `call ${name} again with confirm:true`,
         };
       }
-      const exported = await exportGeneAsset({
+      return submitRegistryAttestation({
+        attestation: await readJson(stringArg(args, "attestationPath")),
+        executionProof: await readJson(stringArg(args, "executionProofPath")),
+      });
+    case "create_experience_listing":
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          manifest_path: stringArg(args, "manifestPath"),
+          next_action: `call ${name} again with confirm:true`,
+        };
+      }
+      return createExperienceListing({
         manifestPath: stringArg(args, "manifestPath"),
-        key: stringArg(args, "key"),
-        out: stringArg(args, "out"),
+        attestationId: stringArg(args, "attestationId"),
+        priceAmount: stringArg(args, "priceAmount"),
+        paymentAsset: stringArg(args, "paymentAsset"),
       });
-      return { status: "exported_for_review", ...exported };
-    }
-    case "record_gene_breeding": {
-      const purchaseReceiptPath = stringArg(args, "purchaseReceiptPath");
-      const buyer = agentRefArg(args.buyer, "buyer");
+    case "inspect_experience_listing":
+      return { status: "ready", listing: await inspectExperienceListing({ listingPath: stringArg(args, "listingPath") }) };
+    case "create_experience_purchase":
       if (args.confirm !== true) {
         return {
           status: "confirmation_required",
-          action: "record_gene_breeding",
-          purchase_receipt_path: purchaseReceiptPath,
-          buyer,
-          next_action: "call record_gene_breeding again with confirm:true",
+          action: name,
+          listing_path: stringArg(args, "listingPath"),
+          next_action: `call ${name} again with confirm:true`,
         };
       }
-      const breeding = await recordGeneBreeding({
-        purchaseReceiptPath,
-        buyerRepo: stringArg(args, "buyerRepo"),
-        buyer,
-        type: breedingTypeArg(args),
-        preBreedProfileHash: stringArg(args, "preBreedProfileHash"),
-        breedingReportRef: optionalStringArg(args, "breedingReportRef"),
+      return createExperiencePurchase({
+        listingPath: stringArg(args, "listingPath"),
+        buyerAgent: agentRefArg(args.buyerAgent, "buyerAgent"),
+        filecoinPayReference: stringArg(args, "filecoinPayReference"),
+        escrowId: stringArg(args, "escrowId"),
+        keyEnvelope: stringArg(args, "keyEnvelope"),
+        deliveryProof: stringArg(args, "deliveryProof"),
       });
-      return { status: "breeding_recorded", breeding_path: breeding.path, receipt: breeding.receipt };
-    }
-    case "plan_exchange_round": {
-      const agents = arrayArg(args, "agents");
-      return { status: "planned", round: planExchangeRound(agents) };
-    }
+    case "verify_experience_delivery":
+      return verifyExperienceDelivery({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
+        key: stringArg(args, "key"),
+      });
+    case "prepare_experience_ingestion":
+      return prepareExperienceIngestion({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
+        buyerRepo: stringArg(args, "buyerRepo"),
+        key: stringArg(args, "key"),
+        confirm: args.confirm === true,
+      });
+    case "record_experience_feedback":
+      return recordExperienceFeedback({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
+        score: numberArg(args, "score"),
+        note: optionalStringArg(args, "note"),
+      });
+    case "plan_exchange_round":
+      return { status: "planned", round: planExchangeRound(arrayArg(args, "agents")) };
     default:
       throw new Error(`unknown tool: ${name}`);
   }
@@ -209,6 +183,22 @@ function optionalStringArg(args: Record<string, unknown>, name: string): string 
   return value;
 }
 
+function numberArg(args: Record<string, unknown>, name: string): number {
+  const value = args[name];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${name} must be a number`);
+  }
+  return value;
+}
+
+function arrayArg(args: Record<string, unknown>, name: string): string[] {
+  const value = args[name];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new Error(`${name} must be a string array`);
+  }
+  return value as string[];
+}
+
 function agentRefArg(value: unknown, name: string): AgentRef {
   if (!value || typeof value !== "object") {
     throw new Error(`${name} is required`);
@@ -220,14 +210,6 @@ function agentRefArg(value: unknown, name: string): AgentRef {
   return { agentRegistry: ref.agentRegistry, agentId: ref.agentId };
 }
 
-function arrayArg(args: Record<string, unknown>, name: string): string[] {
-  const value = args[name];
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    throw new Error(`${name} must be a string array`);
-  }
-  return value as string[];
-}
-
 function networkArg(args: Record<string, unknown>): "mainnet" | "calibration" | undefined {
   const value = args.network;
   if (value === undefined) {
@@ -235,14 +217,6 @@ function networkArg(args: Record<string, unknown>): "mainnet" | "calibration" | 
   }
   if (value !== "mainnet" && value !== "calibration") {
     throw new Error("network must be mainnet or calibration");
-  }
-  return value;
-}
-
-function breedingTypeArg(args: Record<string, unknown>): BreedingReceipt["type"] {
-  const value = args.type;
-  if (value !== "full_breed" && value !== "selective_breed") {
-    throw new Error("type must be full_breed or selective_breed");
   }
   return value;
 }

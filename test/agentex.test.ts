@@ -7,396 +7,348 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
-  createGeneAsset,
   createAgentexServer,
-  createGeneListing,
-  createGenePurchase,
-  exportGeneAsset,
-  invokeAgentexTool,
+  createExecutionProof,
+  createExperienceListing,
+  createExperiencePurchase,
+  createTradeExperienceAsset,
+  inspectExperienceListing,
   planExchangeRound,
-  recordGeneBreeding,
-  scoreGeneAsset,
-  verifyGeneAsset,
+  prepareExperienceIngestion,
+  prepareRegistryAttestation,
+  recordExperienceFeedback,
+  sha256,
+  stableJson,
+  submitRegistryAttestation,
+  tradeExperienceSchema,
+  verifyExperienceDelivery,
+  verifyExecutionProof,
 } from "../src/index.js";
+import { compileContracts } from "../scripts/compile-contracts.js";
 
 const key = "0123456789abcdef0123456789abcdef";
+const seller = { agentRegistry: "eip155:8453:0xregistry", agentId: "1" };
+const buyer = { agentRegistry: "eip155:8453:0xregistry", agentId: "2" };
 
-async function fixtureRepo(): Promise<string> {
-  const dir = mkdtempSync(path.join(tmpdir(), "agentex-"));
-  execFileSync("git", ["init"], { cwd: dir, stdio: "ignore" });
-  execFileSync("git", ["config", "user.email", "agent@example.test"], { cwd: dir });
-  execFileSync("git", ["config", "user.name", "Agent"], { cwd: dir });
-  await writeFile(path.join(dir, "AGENTS.md"), "Risk limit: 1% per trade.\nReview before action.\n");
-  await writeFile(path.join(dir, "MEMORY.md"), "Avoid crowded momentum after drawdown.\n");
-  await writeFile(path.join(dir, ".env"), "PRIVATE_KEY=secret\n");
-  await mkdir(path.join(dir, "logs"));
-  await writeFile(path.join(dir, "logs", "decision.json"), '{"return":0.07,"maxDrawdown":0.02}\n');
-  execFileSync("git", ["add", "AGENTS.md", "MEMORY.md"], { cwd: dir });
-  execFileSync("git", ["commit", "-m", "seed profile"], { cwd: dir, stdio: "ignore" });
-  return dir;
+async function fixtureActivity(): Promise<{ root: string; activityPath: string; memoryPath: string }> {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-v1-"));
+  const memoryDir = path.join(root, ".openclaw", "memory");
+  const activityDir = path.join(root, "activity");
+  await mkdir(memoryDir, { recursive: true });
+  await mkdir(activityDir, { recursive: true });
+  const memoryPath = path.join(memoryDir, "2026-05-18.md");
+  const activityPath = path.join(activityDir, "trade.json");
+  await writeFile(memoryPath, "Pre-trade plan and post-trade reflection live in structured activity.\n");
+  await writeFile(activityPath, stableJson({ trades: [sampleTrade()] }));
+  return { root, activityPath, memoryPath };
 }
 
-test("createGeneAsset packages only profile files and encrypts the payload", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
+function sampleTrade(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    chain_id: 8453,
+    whitelisted_venue_id: "demo-venue-v1",
+    trade_tx_hash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+    pair: "ETH/USDC",
+    side: "buy",
+    size: "1.25",
+    fill_price: "3200.50",
+    execution_block_number: 123456,
+    execution_timestamp: "2026-05-18T10:00:00.000Z",
+    pre_trade_context_timestamp: "2026-05-18T09:59:30.000Z",
+    pre_trade_market_context: "ETH retraced into a support band while funding cooled.",
+    pre_trade_reasoning: "pre-trade reasoning: buy after volatility contraction with tight invalidation.",
+    post_trade_reflection_timestamp: "2026-05-18T10:01:00.000Z",
+    post_trade_reflection: "Fill matched expected liquidity and slippage stayed inside tolerance.",
+    ...overrides,
+  };
+}
 
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    evidenceDir: path.join(repo, "logs"),
+test("V1 schemas accept the required contract names", () => {
+  const experience = tradeExperienceSchema.parse({
+    schema: "agentex.trade_experience.v1",
+    experience_id: "experience-alpha-0001",
+    seller_agent: seller,
+    ...sampleTrade(),
+    source_memory_path: ".openclaw/memory/2026-05-18.md",
+  });
+
+  const manifest = {
+    schema: "agentex.experience_manifest.v1",
+  };
+  const attestation = {
+    schema: "agentex.registry_attestation.v1",
+  };
+  const listing = {
+    schema: "agentex.market_listing.v1",
+  };
+  const purchase = {
+    schema: "agentex.purchase_receipt.v1",
+  };
+  const quality = {
+    schema: "agentex.experience_quality.v1",
+  };
+
+  assert.equal(experience.schema, "agentex.trade_experience.v1");
+  assert.equal(manifest.schema, "agentex.experience_manifest.v1");
+  assert.equal(attestation.schema, "agentex.registry_attestation.v1");
+  assert.equal(listing.schema, "agentex.market_listing.v1");
+  assert.equal(purchase.schema, "agentex.purchase_receipt.v1");
+  assert.equal(quality.schema, "agentex.experience_quality.v1");
+});
+
+test("createTradeExperienceAsset extracts exactly one encrypted trade experience", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+
+  const asset = await createTradeExperienceAsset({
+    activityPath: fixture.activityPath,
+    memoryPath: fixture.memoryPath,
+    sellerAgent: seller,
     key,
   });
 
-  assert.deepEqual(
-    asset.manifest.files.map((file) => file.path),
-    ["AGENTS.md", "MEMORY.md"],
-  );
-  assert.equal(asset.manifest.schema, "agentex.gene_manifest.v1");
-  assert.equal(asset.manifest.gene_format, "openclaw.profile.v1");
-  assert.match(asset.manifest.encrypted_payload_ref, /^local:[a-f0-9]{64}$/);
+  assert.equal(asset.experience.side, "buy");
+  assert.equal(asset.experience.schema, "agentex.trade_experience.v1");
+  assert.equal(asset.manifest.schema, "agentex.experience_manifest.v1");
+  assert.equal(asset.manifest.decrypted_experience_hash, sha256(stableJson(asset.experience)));
+  assert.equal(asset.manifest.public_trade_summary.trade_tx_hash, asset.experience.trade_tx_hash);
   assert.equal(asset.redaction.blocked.length, 0);
 
-  const payload = await readFile(asset.paths.encryptedPayload, "utf8");
-  assert.equal(payload.includes("Risk limit"), false);
-  assert.equal(payload.includes("Avoid crowded"), false);
+  const encryptedText = await readFile(asset.paths.encryptedExperience, "utf8");
+  assert.equal(encryptedText.includes("pre-trade reasoning"), false);
+  assert.match(asset.manifest.encrypted_experience_cid, /^local:[a-f0-9]{64}$/);
 });
 
-test("createGeneAsset fails closed when a profile file contains secret material", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  writeFileSync(path.join(repo, "MEMORY.md"), "PRIVATE_KEY=leak\n");
+test("createTradeExperienceAsset fails closed on multi-trade activity or denied material", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  await writeFile(fixture.activityPath, stableJson({ trades: [sampleTrade(), sampleTrade()] }));
 
   await assert.rejects(
-    createGeneAsset({
-      repo,
-      agent: "alpha",
-      seller: { agentRegistry: "0xregistry", agentId: "1" },
+    createTradeExperienceAsset({
+      activityPath: fixture.activityPath,
+      memoryPath: fixture.memoryPath,
+      sellerAgent: seller,
+      key,
+    }),
+    /exactly one trade/i,
+  );
+
+  await writeFile(fixture.activityPath, stableJson({ trades: [sampleTrade({ pre_trade_reasoning: "token=leak" })] }));
+  await assert.rejects(
+    createTradeExperienceAsset({
+      activityPath: fixture.activityPath,
+      memoryPath: fixture.memoryPath,
+      sellerAgent: seller,
       key,
     }),
     /redaction failed/i,
   );
 });
 
-test("scoreGeneAsset is deterministic and independent from valuation notes", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    evidenceDir: path.join(repo, "logs"),
-    key,
-  });
+test("Solidity contracts compile with the required demo venue and registry ABI", async (t) => {
+  const outDir = mkdtempSync(path.join(tmpdir(), "agentex-artifacts-"));
+  t.after(() => rm(outDir, { recursive: true, force: true }));
+  const artifacts = await compileContracts({ outDir });
+  const demoNames = artifacts.demoVenue.abi.map((item: { name?: string }) => item.name).filter(Boolean);
+  const registryNames = artifacts.registry.abi.map((item: { name?: string }) => item.name).filter(Boolean);
 
-  const first = await scoreGeneAsset({
-    manifestPath: asset.paths.manifest,
-    evidenceDir: path.join(repo, "logs"),
-    valuationNote: "Looks excellent.",
-  });
-  const second = await scoreGeneAsset({
-    manifestPath: asset.paths.manifest,
-    evidenceDir: path.join(repo, "logs"),
-    valuationNote: "Looks weak.",
-  });
-
-  assert.equal(first.report.deterministic_score, second.report.deterministic_score);
-  assert.notEqual(first.report.valuation_note, second.report.valuation_note);
+  assert.ok(demoNames.includes("executeTrade"));
+  assert.ok(demoNames.includes("TradeExecuted"));
+  assert.ok(registryNames.includes("submitAttestation"));
+  assert.ok(registryNames.includes("AttestationAccepted"));
 });
 
-test("verifyGeneAsset validates hashes and catches encrypted payload tampering", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
+test("execution proof and registry attestation fail closed on fill-price mismatch", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const asset = await createTradeExperienceAsset({
+    activityPath: fixture.activityPath,
+    memoryPath: fixture.memoryPath,
+    sellerAgent: seller,
     key,
   });
 
-  const verified = await verifyGeneAsset({
-    manifestPath: asset.paths.manifest,
-    key,
+  const proof = createExecutionProof({
+    trade: asset.experience,
+    decoderId: "local-decoder",
+    decoderKey: "decoder-key",
   });
+  const verified = verifyExecutionProof({ proof, decoderKey: "decoder-key", expected: asset.manifest.public_trade_summary });
+  const badFill = verifyExecutionProof({
+    proof,
+    decoderKey: "decoder-key",
+    expected: { ...asset.manifest.public_trade_summary, fill_price: "3300.00" },
+  });
+
+  assert.equal(proof.schema, "agentex.execution_proof.v1");
+  assert.equal(proof.whitelisted_venue_id, "demo-venue-v1");
   assert.equal(verified.ok, true);
+  assert.equal(badFill.ok, false);
 
-  const encrypted = readFileSync(asset.paths.encryptedPayload, "utf8");
-  writeFileSync(asset.paths.encryptedPayload, encrypted.replace(/[a-f0-9]/, "0"));
-
-  const tampered = await verifyGeneAsset({
-    manifestPath: asset.paths.manifest,
-    key,
+  const prepared = prepareRegistryAttestation({
+    manifest: asset.manifest,
+    executionProof: proof,
+    sellerNonce: "nonce-1",
+    attestationDeadline: "2026-05-18T10:05:00.000Z",
+    registryAddress: "0x0000000000000000000000000000000000000001",
   });
-  assert.equal(tampered.ok, false);
-  assert.equal(tampered.errors.some((error) => error.includes("encrypted payload")), true);
+  const accepted = await submitRegistryAttestation({ attestation: prepared.attestation, executionProof: proof });
+  assert.equal(accepted.status, "accepted");
+  assert.match(accepted.attestation_id, /^0x[a-f0-9]{64}$/);
 });
 
-test("exportGeneAsset writes a review directory without changing the source repo", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const out = path.join(repo, "review");
-  const before = readFileSync(path.join(repo, "MEMORY.md"), "utf8");
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
+test("market listing, purchase, delivery verification, ingestion, and feedback form one flow", async (t) => {
+  const fixture = await fixtureActivity();
+  const buyerRoot = mkdtempSync(path.join(tmpdir(), "agentex-buyer-"));
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  t.after(() => rm(buyerRoot, { recursive: true, force: true }));
+  const asset = await createTradeExperienceAsset({
+    activityPath: fixture.activityPath,
+    memoryPath: fixture.memoryPath,
+    sellerAgent: seller,
     key,
   });
-
-  const exported = await exportGeneAsset({
+  const proof = createExecutionProof({
+    trade: asset.experience,
+    decoderId: "local-decoder",
+    decoderKey: "decoder-key",
+  });
+  const prepared = prepareRegistryAttestation({
+    manifest: asset.manifest,
+    executionProof: proof,
+    sellerNonce: "nonce-1",
+    attestationDeadline: "2026-05-18T10:05:00.000Z",
+    registryAddress: "0x0000000000000000000000000000000000000001",
+  });
+  const accepted = await submitRegistryAttestation({ attestation: prepared.attestation, executionProof: proof });
+  const listing = await createExperienceListing({
     manifestPath: asset.paths.manifest,
-    key,
-    out,
-  });
-
-  assert.equal(exported.ok, true);
-  assert.equal(readFileSync(path.join(repo, "MEMORY.md"), "utf8"), before);
-  assert.equal(readFileSync(path.join(out, "MEMORY.md"), "utf8"), before);
-  assert.match(readFileSync(path.join(out, "DIFF_PLAN.md"), "utf8"), /Review exported profile files/);
-});
-
-test("planExchangeRound creates a closed alpha beta gamma delta purchase loop", () => {
-  assert.deepEqual(planExchangeRound(["alpha", "beta", "gamma", "delta"]), [
-    { buyer: "alpha", seller: "beta" },
-    { buyer: "beta", seller: "gamma" },
-    { buyer: "gamma", seller: "delta" },
-    { buyer: "delta", seller: "alpha" },
-  ]);
-});
-
-test("createGeneListing writes a live listing for one exact manifest", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    key,
-  });
-  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
-
-  const listing = await createGeneListing({
-    manifestPath: asset.paths.manifest,
-    scorePath: score.path,
-    priceAmount: "50",
+    attestationId: accepted.attestation_id,
+    priceAmount: "5",
     paymentAsset: "USDFC",
-    deliveryPublicKeyRequirement: "buyer_x25519_key",
+  });
+
+  const purchase = await createExperiencePurchase({
+    listingPath: listing.path,
+    buyerAgent: buyer,
+    filecoinPayReference: "filecoin-pay:alpha-beta",
+    escrowId: "arkhai:escrow:alpha-beta",
+    keyEnvelope: key,
+    deliveryProof: "seller delivered key for exact CID and hash",
+  });
+  const verified = await verifyExperienceDelivery({
+    purchaseReceiptPath: purchase.path,
+    key,
+  });
+  const ingestion = await prepareExperienceIngestion({
+    purchaseReceiptPath: purchase.path,
+    buyerRepo: buyerRoot,
+    key,
+    confirm: true,
+  });
+  const feedback = await recordExperienceFeedback({
+    purchaseReceiptPath: purchase.path,
+    score: 91,
+    note: "Useful volatility lesson.",
   });
 
   assert.equal(listing.listing.schema, "agentex.market_listing.v1");
   assert.equal(listing.listing.status, "live");
-  assert.equal(listing.listing.seller.agentId, "1");
-  assert.equal(listing.listing.manifest_ref, `local:${asset.manifest.gene_id}`);
-  assert.equal(listing.listing.encrypted_payload_ref, asset.manifest.encrypted_payload_ref);
-  assert.match(listing.listing.escrow_demand, new RegExp(asset.manifest.gene_id));
-  assert.match(readFileSync(listing.path, "utf8"), /agentex\.market_listing\.v1/);
-});
-
-test("createGenePurchase records escrow and delivery verification state", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    key,
-  });
-  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
-  const listing = await createGeneListing({
-    manifestPath: asset.paths.manifest,
-    scorePath: score.path,
-    priceAmount: "50",
-    paymentAsset: "USDFC",
-    deliveryPublicKeyRequirement: "buyer_x25519_key",
-  });
-
-  const purchase = await createGenePurchase({
-    listingPath: listing.path,
-    buyer: { agentRegistry: "0xregistry", agentId: "2" },
-    escrowId: "arkhai:escrow:1",
-    buyerDeliveryPublicKey: "buyer_x25519_key",
-    keyEnvelope: "encrypted-key-envelope",
-    deliveryProof: "delivered manifest and key",
-  });
-
+  assert.equal(listing.listing.attestation_id, accepted.attestation_id);
   assert.equal(purchase.receipt.schema, "agentex.purchase_receipt.v1");
-  assert.equal(purchase.receipt.seller.agentId, "1");
-  assert.equal(purchase.receipt.buyer.agentId, "2");
-  assert.equal(purchase.receipt.escrow_id, "arkhai:escrow:1");
-  assert.equal(purchase.receipt.decryption_verification.status, "pending");
-  assert.equal(purchase.receipt.storage_verification.status, "local_verified");
-  assert.match(readFileSync(purchase.path, "utf8"), /agentex\.purchase_receipt\.v1/);
+  assert.equal(verified.receipt.decryption_verification_result.status, "verified");
+  assert.equal(verified.receipt.decrypted_experience_hash, listing.listing.decrypted_experience_hash);
+  assert.match(ingestion.path, /agentex\/.+\.json$/);
+  assert.equal(feedback.feedback.schema, "agentex.experience_feedback.v1");
+
+  const inspected = await inspectExperienceListing({ listingPath: listing.path });
+  assert.equal(inspected.listing_id, listing.listing.listing_id);
 });
 
-test("recordGeneBreeding writes current buyer profile provenance", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    key,
-  });
-  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
-  const listing = await createGeneListing({
-    manifestPath: asset.paths.manifest,
-    scorePath: score.path,
-    priceAmount: "50",
-    paymentAsset: "USDFC",
-    deliveryPublicKeyRequirement: "buyer_x25519_key",
-  });
-  const purchase = await createGenePurchase({
-    listingPath: listing.path,
-    buyer: { agentRegistry: "0xregistry", agentId: "2" },
-    escrowId: "arkhai:escrow:1",
-    buyerDeliveryPublicKey: "buyer_x25519_key",
-    keyEnvelope: "encrypted-key-envelope",
-    deliveryProof: "delivered manifest and key",
-  });
-  writeFileSync(path.join(repo, "MEMORY.md"), "Bred lesson from alpha.\n");
-  execFileSync("git", ["add", "MEMORY.md"], { cwd: repo });
-  execFileSync("git", ["commit", "-m", "breed purchased gene"], { cwd: repo, stdio: "ignore" });
-
-  const breeding = await recordGeneBreeding({
-    purchaseReceiptPath: purchase.path,
-    buyerRepo: repo,
-    buyer: { agentRegistry: "0xregistry", agentId: "2" },
-    type: "selective_breed",
-    preBreedProfileHash: "pre-breed-hash",
-  });
-
-  assert.equal(breeding.receipt.schema, "agentex.breeding_receipt.v1");
-  assert.equal(breeding.receipt.type, "selective_breed");
-  assert.equal(breeding.receipt.purchased_gene_id, asset.manifest.gene_id);
-  assert.equal(breeding.receipt.buyer_pre_breed_profile_hash, "pre-breed-hash");
-  assert.equal(breeding.receipt.resulting_file_hashes.length, 2);
-  assert.match(breeding.receipt.resulting_profile_commit, /^[a-f0-9]{40}$/);
-});
-
-test("Aomi-facing tools require confirmation before side effects", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-
-  const preview = await invokeAgentexTool("create_gene_asset", {
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    key,
-  });
-
-  assert.equal(preview.status, "confirmation_required");
-  assert.equal(preview.next_action, "call create_gene_asset again with confirm:true");
-
-  const created = await invokeAgentexTool("create_gene_asset", {
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    key,
-    confirm: true,
-  });
-
-  assert.equal(created.status, "created");
-  assert.match(String(created.manifest_path), /manifest\.json$/);
-});
-
-test("Filecoin upload tool does not invent success without wallet configuration", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    key,
-  });
-
-  const result = await invokeAgentexTool("upload_gene_to_filecoin", {
-    manifestPath: asset.paths.manifest,
-    confirm: true,
-  });
-
-  assert.equal(result.status, "configuration_required");
-  assert.equal(result.required_env, "PRIVATE_KEY");
-});
-
-test("HTTP tool server exposes compact JSON tool calls", async (t) => {
+test("Aomi-facing server exposes the spec tool names with confirmation gates", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
   const server = createAgentexServer();
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
   assert.equal(typeof address, "object");
-  assert.notEqual(address, null);
   const port = address && typeof address === "object" ? address.port : 0;
 
-  const response = await fetch(`http://127.0.0.1:${port}/tool/plan_exchange_round`, {
+  const planned = await fetch(`http://127.0.0.1:${port}/tool/plan_exchange_round`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ agents: ["alpha", "beta", "gamma", "delta"] }),
   });
+  assert.equal(planned.status, 200);
+  const plannedBody = (await planned.json()) as { round: Array<{ buyer: string; seller: string }> };
+  assert.deepEqual(plannedBody.round, [
+    { buyer: "alpha", seller: "beta" },
+    { buyer: "beta", seller: "gamma" },
+    { buyer: "gamma", seller: "delta" },
+    { buyer: "delta", seller: "alpha" },
+  ]);
 
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), {
-    status: "planned",
-    round: [
-      { buyer: "alpha", seller: "beta" },
-      { buyer: "beta", seller: "gamma" },
-      { buyer: "gamma", seller: "delta" },
-      { buyer: "delta", seller: "alpha" },
-    ],
+  const preview = await fetch(`http://127.0.0.1:${port}/tool/extract_trade_experience`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      activityPath: fixture.activityPath,
+      memoryPath: fixture.memoryPath,
+      sellerAgent: seller,
+      key,
+    }),
   });
+  assert.equal(preview.status, 200);
+  const previewBody = (await preview.json()) as { status: string };
+  assert.equal(previewBody.status, "confirmation_required");
 });
 
-test("CLI returns compact JSON for exchange planning", () => {
+test("CLI and local demo script emit compact JSON summaries", async () => {
   const output = execFileSync(
     "node",
-    ["--import", "tsx", "src/cli.ts", "exchange", "plan", "alpha", "beta", "gamma", "delta"],
+    ["--import", "tsx", "src/cli.ts", "demo", "plan", "alpha", "beta", "gamma", "delta"],
     { cwd: path.resolve("."), encoding: "utf8" },
   );
   assert.deepEqual(JSON.parse(output), {
     status: "planned",
-    round: [
-      { buyer: "alpha", seller: "beta" },
-      { buyer: "beta", seller: "gamma" },
-      { buyer: "gamma", seller: "delta" },
-      { buyer: "delta", seller: "alpha" },
-    ],
+    round: planExchangeRound(["alpha", "beta", "gamma", "delta"]),
   });
+
+  const localOutput = execFileSync("node", ["--import", "tsx", "scripts/run-local-v1.ts"], {
+    cwd: path.resolve("."),
+    encoding: "utf8",
+  });
+  const summary = JSON.parse(localOutput) as {
+    mode: string;
+    agents: unknown[];
+    experiences: unknown[];
+    listings: unknown[];
+    purchases: unknown[];
+    ingestions: unknown[];
+  };
+  assert.equal(summary.mode, "local");
+  assert.equal(summary.agents.length, 4);
+  assert.equal(summary.experiences.length, 4);
+  assert.equal(summary.listings.length, 4);
+  assert.equal(summary.purchases.length, 4);
+  assert.equal(summary.ingestions.length, 4);
 });
 
-test("CLI can create a market listing receipt", async (t) => {
-  const repo = await fixtureRepo();
-  t.after(() => rm(repo, { recursive: true, force: true }));
-  const asset = await createGeneAsset({
-    repo,
-    agent: "alpha",
-    seller: { agentRegistry: "0xregistry", agentId: "1" },
-    key,
-  });
-  const score = await scoreGeneAsset({ manifestPath: asset.paths.manifest });
-
-  const output = execFileSync(
-    "node",
-    [
-      "--import",
-      "tsx",
-      "src/cli.ts",
-      "market",
-      "list",
-      "--manifest",
-      asset.paths.manifest,
-      "--score",
-      score.path,
-      "--price",
-      "50",
-      "--asset",
-      "USDFC",
-      "--delivery-key-requirement",
-      "buyer_x25519_key",
-      "--confirm",
-    ],
-    { cwd: path.resolve("."), encoding: "utf8" },
+test("live script fails before spending money when required env is missing", () => {
+  assert.throws(
+    () =>
+      execFileSync("node", ["--import", "tsx", "scripts/run-live-v1.ts"], {
+        cwd: path.resolve("."),
+        encoding: "utf8",
+        env: { ...process.env, AGENTEX_RPC_URL: "" },
+      }),
+    /missing required env/i,
   );
+});
 
-  const parsed = JSON.parse(output) as { status: string; listing_path: string };
-  assert.equal(parsed.status, "listed");
-  assert.match(parsed.listing_path, /listing\.json$/);
+test("market view and runbook exist for the judge path", () => {
+  assert.match(readFileSync(path.join("demo", "market-view.html"), "utf8"), /summary\.json/);
+  assert.match(readFileSync(path.join("demo", "live-runbook.md"), "utf8"), /npm run demo:live/);
 });

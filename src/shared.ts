@@ -1,40 +1,26 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
-import path from "node:path";
-
-export const PROFILE_FILES = ["AGENTS.md", "MEMORY.md"] as const;
+import { readFile } from "node:fs/promises";
 
 export interface AgentRef {
   agentRegistry: string;
   agentId: string;
 }
 
-export interface GeneFile {
-  path: string;
-  sha256: string;
-  bytes: number;
+export interface PublicTradeSummary {
+  chain_id: number;
+  whitelisted_venue_id: string;
+  trade_tx_hash: string;
+  pair: string;
+  side: "buy" | "sell";
+  size: string;
+  fill_price: string;
+  execution_block_number: number;
+  execution_timestamp: string;
 }
 
-export interface GeneManifest {
-  schema: "agentex.gene_manifest.v1";
-  gene_id: string;
-  gene_format: "openclaw.profile.v1";
-  agent: string;
-  seller: AgentRef;
-  source_commit: string | null;
-  parent_commit: string | null;
-  files: GeneFile[];
-  redaction_report_sha256: string;
-  encrypted_payload_ref: string;
-  encrypted_payload_sha256: string;
-  preview_ref: string;
-  preview_sha256: string;
-  evidence: Array<{ path: string; sha256: string; bytes: number }>;
-  storage: {
-    provider: "local";
-    status: "verified";
-  };
+export interface VerificationStatus {
+  status: "pending" | "local_verified" | "verified" | "failed";
+  detail?: string;
 }
 
 export function sha256(data: string | Buffer): string {
@@ -49,46 +35,12 @@ export async function readJson<T>(filePath: string): Promise<T> {
   return JSON.parse(await readFile(filePath, "utf8")) as T;
 }
 
-export async function hashDirectory(
-  dir: string,
-  base: string,
-): Promise<Array<{ path: string; sha256: string; bytes: number }>> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const results = await Promise.all(
-    entries.map(async (entry) => {
-      const absolute = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        return hashDirectory(absolute, base);
-      }
-      if (!entry.isFile()) {
-        return [];
-      }
-      const content = await readFile(absolute);
-      return [{ path: path.relative(base, absolute), sha256: sha256(content), bytes: content.byteLength }];
-    }),
-  );
-  return results.flat().sort((left, right) => left.path.localeCompare(right.path));
+export function localRef(data: string | Buffer): string {
+  return `local:${sha256(data)}`;
 }
 
-export async function hashProfileFiles(repo: string): Promise<GeneFile[]> {
-  return Promise.all(
-    PROFILE_FILES.map(async (relativePath) => {
-      const content = await readFile(path.join(repo, relativePath));
-      return {
-        path: relativePath,
-        sha256: sha256(content),
-        bytes: content.byteLength,
-      };
-    }),
-  );
-}
-
-export function gitValue(repo: string, args: string[]): string | null {
-  try {
-    return execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-  } catch {
-    return null;
-  }
+export function assertNever(value: never): never {
+  throw new Error(`unexpected value: ${String(value)}`);
 }
 
 function sortJson(value: unknown): unknown {

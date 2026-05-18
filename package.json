@@ -1,14 +1,18 @@
 {
   "name": "agentex",
   "version": "0.1.0",
-  "description": "Verifiable OpenClaw profile gene market core",
+  "description": "Verifiable OpenClaw trade-experience market core",
   "type": "module",
   "bin": {
     "agentex": "./src/cli.ts"
   },
   "scripts": {
     "test": "node --import tsx --test test/agentex.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "contracts:compile": "node --import tsx scripts/compile-contracts.ts",
+    "deploy:demo": "node --import tsx scripts/deploy-demo-contracts.ts",
+    "demo:local": "node --import tsx scripts/run-local-v1.ts",
+    "demo:live": "node --import tsx scripts/run-live-v1.ts"
   },
   "engines": {
     "node": ">=24"
@@ -16,10 +20,13 @@
   "dependencies": {
     "commander": "^12.1.0",
     "filecoin-pin": "^0.21.0",
-    "pino": "^10.3.1"
+    "pino": "^10.3.1",
+    "viem": "^2.49.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.19.11",
+    "solc": "^0.8.35",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }

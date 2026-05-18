@@ -1,23 +1,37 @@
-export type { AgentRef, GeneFile, GeneManifest } from "./shared.js";
+export type { AgentRef, PublicTradeSummary, VerificationStatus } from "./shared.js";
+export { localRef, readJson, sha256, stableJson } from "./shared.js";
 export {
-  type GeneAsset,
-  type RedactionReport,
-  type ScoreReport,
-  createGeneAsset,
-  exportGeneAsset,
-  inspectOpenclawProfile,
-  scoreGeneAsset,
-  verifyGeneAsset,
-} from "./gene.js";
-export { type FilecoinUploadReceipt, uploadGeneToFilecoin } from "./filecoin.js";
-export {
-  type BreedingReceipt,
+  type ExecutionProof,
+  type ExperienceManifest,
   type MarketListing,
   type PurchaseReceipt,
-  createGeneListing,
-  createGenePurchase,
-  inspectGeneListing,
-  recordGeneBreeding,
+  type RegistryAttestation,
+  type TradeExperience,
+  executionProofSchema,
+  experienceManifestSchema,
+  marketListingSchema,
+  purchaseReceiptSchema,
+  qualityReportSchema,
+  registryAttestationSchema,
+  tradeExperienceSchema,
+} from "./schemas.js";
+export {
+  type TradeExperienceAsset,
+  createTradeExperienceAsset,
+  inspectOpenclawActivity,
+  prepareExperienceIngestion,
+  verifyExperiencePayload,
+} from "./experience.js";
+export { type FilecoinUploadReceipt, uploadExperienceToFilecoin } from "./filecoin.js";
+export { createExecutionProof, verifyExecutionProof } from "./venue.js";
+export { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
+export {
+  createExperienceListing,
+  createExperiencePurchase,
+  inspectExperienceListing,
+  recordExperienceFeedback,
+  verifyExperienceDelivery,
 } from "./market.js";
 export { type AgentexToolResult, invokeAgentexTool, planExchangeRound } from "./tools.js";
 export { createAgentexServer } from "./server.js";
+export { readDemoDeployment, requireEnv } from "./contracts.js";

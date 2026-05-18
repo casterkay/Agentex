@@ -1,0 +1,15 @@
+pub const TOOL_NAMES: &[&str] = &[
+    "inspect_openclaw_activity",
+    "extract_trade_experience",
+    "encrypt_trade_experience",
+    "upload_experience_to_filecoin",
+    "create_execution_proof",
+    "prepare_registry_attestation",
+    "submit_registry_attestation",
+    "create_experience_listing",
+    "inspect_experience_listing",
+    "create_experience_purchase",
+    "verify_experience_delivery",
+    "prepare_experience_ingestion",
+    "record_experience_feedback",
+];
