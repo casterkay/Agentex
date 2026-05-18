@@ -1,5 +1,6 @@
 export type { AgentRef, PublicTradeSummary, VerificationStatus } from "./shared.js";
 export { localRef, readJson, sha256, stableJson } from "./shared.js";
+export { loadDotEnv } from "./env.js";
 export {
   type ExecutionProof,
   type ExperienceManifest,

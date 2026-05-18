@@ -13,9 +13,11 @@ import {
   stableJson,
   submitRegistryAttestation,
   verifyExperienceDelivery,
+  loadDotEnv,
 } from "../src/index.js";
 
 const agents = ["alpha", "beta", "gamma", "delta"];
+await loadDotEnv();
 const key = process.env.AGENTEX_EXPERIENCE_KEY ?? "local-demo-experience-key";
 const registryAddress = "0x0000000000000000000000000000000000000001";
 

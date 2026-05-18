@@ -1,4 +1,4 @@
-import { requireEnv } from "../src/index.js";
+import { loadDotEnv, requireEnv } from "../src/index.js";
 
 const required = [
   "AGENTEX_RPC_URL",
@@ -15,6 +15,7 @@ const required = [
 ];
 
 async function main(): Promise<void> {
+  await loadDotEnv();
   requireEnv(required);
   process.stdout.write(
     `${JSON.stringify(

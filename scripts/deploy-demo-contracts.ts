@@ -4,10 +4,12 @@ import { createWalletClient, http, keccak256, stringToBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { compileContracts } from "./compile-contracts.js";
+import { loadDotEnv } from "../src/env.js";
 
 const required = ["AGENTEX_RPC_URL", "AGENTEX_DEPLOYER_PRIVATE_KEY", "AGENTEX_DECODER_ADDRESS", "AGENTEX_CHAIN_ID"];
 
 async function main(): Promise<void> {
+  await loadDotEnv();
   const missing = required.filter((name) => !process.env[name]);
   if (missing.length > 0) {
     throw new Error(`missing required env: ${missing.join(", ")}`);

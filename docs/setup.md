@@ -39,10 +39,10 @@ The full test suite should pass before live setup:
 Use hot wallets only for demo-sized funds. Never commit secrets, seed phrases, private keys, browser
 profiles, wallet exports, or `.env` files.
 
-Set the local gene encryption key:
+Set the local experience encryption key:
 
 ```bash
-export AGENTEX_GENE_KEY="$(openssl rand -hex 32)"
+export AGENTEX_EXPERIENCE_KEY="$(openssl rand -hex 32)"
 ```
 
 Set Filecoin Pin credentials only when you are ready to upload:
@@ -178,7 +178,7 @@ node --import tsx src/cli.ts gene create \
   --seller-registry "eip155:8453:0xREGISTRY" \
   --seller-id "1" \
   --evidence "$ALPHA_PROFILE_REPO/evidence" \
-  --key "$AGENTEX_GENE_KEY"
+  --key "$AGENTEX_EXPERIENCE_KEY"
 ```
 
 The command prints a `manifest_path`. Use it for the next steps:
@@ -200,7 +200,7 @@ Verify the encrypted payload:
 ```bash
 node --import tsx src/cli.ts gene verify \
   --manifest "$ALPHA_MANIFEST" \
-  --key "$AGENTEX_GENE_KEY"
+  --key "$AGENTEX_EXPERIENCE_KEY"
 ```
 
 Export to a review directory:
@@ -209,7 +209,7 @@ Export to a review directory:
 node --import tsx src/cli.ts gene export \
   --manifest "$ALPHA_MANIFEST" \
   --out /tmp/agentex-alpha-review \
-  --key "$AGENTEX_GENE_KEY"
+  --key "$AGENTEX_EXPERIENCE_KEY"
 ```
 
 Do this for alpha, beta, gamma, and delta before attempting live exchange.

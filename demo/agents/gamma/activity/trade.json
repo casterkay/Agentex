@@ -1,0 +1,20 @@
+{
+  "trades": [
+    {
+      "chain_id": 8453,
+      "execution_block_number": 123458,
+      "execution_timestamp": "2026-05-18T10:00:00.000Z",
+      "fill_price": "3200.00",
+      "pair": "ETH/USDC",
+      "post_trade_reflection": "gamma recorded execution quality and next risk adjustment.",
+      "post_trade_reflection_timestamp": "2026-05-18T10:01:00.000Z",
+      "pre_trade_context_timestamp": "2026-05-18T09:59:30.000Z",
+      "pre_trade_market_context": "gamma observed a local volatility setup.",
+      "pre_trade_reasoning": "gamma chose a bounded demo trade with clear invalidation.",
+      "side": "buy",
+      "size": "3.00",
+      "trade_tx_hash": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      "whitelisted_venue_id": "demo-venue-v1"
+    }
+  ]
+}

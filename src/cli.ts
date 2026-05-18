@@ -14,8 +14,11 @@ import {
   submitRegistryAttestation,
   uploadExperienceToFilecoin,
   verifyExperienceDelivery,
+  loadDotEnv,
 } from "./index.js";
 import { type ExecutionProof, type ExperienceManifest, type RegistryAttestation, type TradeExperience } from "./schemas.js";
+
+await loadDotEnv();
 
 const program = new Command();
 

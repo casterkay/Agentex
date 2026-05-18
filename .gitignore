@@ -1,5 +1,8 @@
 .history/
 .agents/
+.env
+.env.*
+!.env.example
 .npm-cache/
 node_modules/
 tmp/
@@ -9,7 +12,7 @@ cache/
 artifacts/
 demo/local-output/
 demo/live-output/
-demo/agents/
+demo/agents/*/.openclaw/imports/
 _ref/
 .DS_Store
 *.pyc

@@ -24,6 +24,7 @@ import {
   verifyExperienceDelivery,
   verifyExecutionProof,
 } from "../src/index.js";
+import { loadDotEnv } from "../src/env.js";
 import { compileContracts } from "../scripts/compile-contracts.js";
 
 const key = "0123456789abcdef0123456789abcdef";
@@ -94,6 +95,45 @@ test("V1 schemas accept the required contract names", () => {
   assert.equal(listing.schema, "agentex.market_listing.v1");
   assert.equal(purchase.schema, "agentex.purchase_receipt.v1");
   assert.equal(quality.schema, "agentex.experience_quality.v1");
+});
+
+test("loadDotEnv reads .env files without overriding existing shell values", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-env-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const envPath = path.join(root, ".env");
+  await writeFile(
+    envPath,
+    [
+      "AGENTEX_RPC_URL=https://rpc.example",
+      "AGENTEX_CHAIN_ID=8453",
+      "AGENTEX_EXPERIENCE_KEY=\"quoted-key\"",
+      "PRIVATE_KEY='0xabc'",
+      "# comment",
+      "",
+    ].join("\n"),
+  );
+  const previousRpc = process.env.AGENTEX_RPC_URL;
+  const previousChain = process.env.AGENTEX_CHAIN_ID;
+  const previousKey = process.env.AGENTEX_EXPERIENCE_KEY;
+  const previousPrivate = process.env.PRIVATE_KEY;
+  process.env.AGENTEX_RPC_URL = "https://shell.example";
+  delete process.env.AGENTEX_CHAIN_ID;
+  delete process.env.AGENTEX_EXPERIENCE_KEY;
+  delete process.env.PRIVATE_KEY;
+  t.after(() => {
+    restoreEnv("AGENTEX_RPC_URL", previousRpc);
+    restoreEnv("AGENTEX_CHAIN_ID", previousChain);
+    restoreEnv("AGENTEX_EXPERIENCE_KEY", previousKey);
+    restoreEnv("PRIVATE_KEY", previousPrivate);
+  });
+
+  const loaded = await loadDotEnv(envPath);
+
+  assert.deepEqual(loaded, ["AGENTEX_RPC_URL", "AGENTEX_CHAIN_ID", "AGENTEX_EXPERIENCE_KEY", "PRIVATE_KEY"]);
+  assert.equal(process.env.AGENTEX_RPC_URL, "https://shell.example");
+  assert.equal(process.env.AGENTEX_CHAIN_ID, "8453");
+  assert.equal(process.env.AGENTEX_EXPERIENCE_KEY, "quoted-key");
+  assert.equal(process.env.PRIVATE_KEY, "0xabc");
 });
 
 test("createTradeExperienceAsset extracts exactly one encrypted trade experience", async (t) => {
@@ -352,3 +392,11 @@ test("market view and runbook exist for the judge path", () => {
   assert.match(readFileSync(path.join("demo", "market-view.html"), "utf8"), /summary\.json/);
   assert.match(readFileSync(path.join("demo", "live-runbook.md"), "utf8"), /npm run demo:live/);
 });
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
+}

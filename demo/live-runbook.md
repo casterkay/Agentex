@@ -3,6 +3,8 @@
 ## Verify Locally
 
 ```bash
+cp .env.example .env
+# edit .env before live deployment; local demo can run with placeholders
 npm install
 npm test
 npm run typecheck
@@ -11,11 +13,9 @@ npm run demo:local
 
 ## Deploy Demo Contracts
 
+Edit `.env` and set `AGENTEX_RPC_URL`, `AGENTEX_CHAIN_ID`, `AGENTEX_DEPLOYER_PRIVATE_KEY`, and `AGENTEX_DECODER_ADDRESS`, then run:
+
 ```bash
-export AGENTEX_RPC_URL="https://..."
-export AGENTEX_CHAIN_ID="8453"
-export AGENTEX_DEPLOYER_PRIVATE_KEY="0x..."
-export AGENTEX_DECODER_ADDRESS="0x..."
 npm run deploy:demo
 ```
 
@@ -27,16 +27,9 @@ node --import tsx src/cli.ts serve --host 127.0.0.1 --port 8787
 
 ## Run Live Round
 
+After deployment, copy deployed addresses from `deployments/live-v1.json` into `.env` as `AGENTEX_REGISTRY_ADDRESS` and `AGENTEX_DEMO_VENUE_ADDRESS`. Then set the four seller keys, `PRIVATE_KEY`, and `AGENTEX_EXPERIENCE_KEY`.
+
 ```bash
-export AGENTEX_REGISTRY_ADDRESS="0x..."
-export AGENTEX_DEMO_VENUE_ADDRESS="0x..."
-export AGENTEX_DECODER_PRIVATE_KEY="0x..."
-export AGENTEX_SELLER_PRIVATE_KEY_ALPHA="0x..."
-export AGENTEX_SELLER_PRIVATE_KEY_BETA="0x..."
-export AGENTEX_SELLER_PRIVATE_KEY_GAMMA="0x..."
-export AGENTEX_SELLER_PRIVATE_KEY_DELTA="0x..."
-export PRIVATE_KEY="0x..."
-export AGENTEX_EXPERIENCE_KEY="$(openssl rand -hex 32)"
 npm run demo:live
 open demo/market-view.html
 ```
