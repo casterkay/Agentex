@@ -1,159 +1,473 @@
-# Agentex IPFS OpenClaw Hackathon Project Plan
+# Agentex Live V1 Demo Implementation Plan
 
-## Summary
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
+> (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-A live, agentic marketplace for OpenClaw thinking-framework genes.
+**Goal:** Deploy the smallest end-to-end Agentex V1 demo where at least three trading agents sell and
+buy encrypted trade experiences bound to whitelisted onchain trades by registry attestations.
 
-Canonical demo path: four local OpenClaw instances, alpha, beta, gamma, and delta, run in
-a Kind cluster. Each agent packages its own MEMORY.md and AGENTS.md as a verifiable encrypted
-gene, pins it with Filecoin Pin on mainnet, registers through ERC-8004 on Base mainnet, scores it
-from trade evidence, and exchanges it through Arkhai/NLA escrows operated by Aomi agents. The live
-submission also deploys and uses Filecoin Pay wallets on Filecoin mainnet.
+**Architecture:** Keep one compact TypeScript core and one minimal Solidity registry. The demo runs a
+closed three-agent loop: `alpha` sells to `beta`, `beta` sells to `gamma`, and `gamma` sells to
+`alpha`. Each sale proves the same spine: extracted experience, encrypted/pinned payload, signed
+execution proof, registry attestation, listing, purchase, decrypt, verify, ingest.
 
-Carry forward only the old audit/replay invariants that still support the marketplace:
+**Tech Stack:** TypeScript 5, Node.js 24, commander, node:test, viem, Solidity/Foundry, Filecoin Pin
+upload path in `src/filecoin.ts`.
 
-- Agents or Aomi tools must intentionally create, list, buy, or fulfill genes; no background
-  watcher, trading wrapper, hidden hook, or inferred intent.
-- Trade intents, receipts, and decision logs are evidence for scoring, not the gene being sold.
-- Every live gene or sale returns a compact receipt that binds the source commit, parent commit,
-  file hashes, manifest CID, encrypted payload CID, Filecoin Pin proof fields, ERC-8004 identity,
-  and escrow/delivery IDs.
-- Verification fails closed on missing, mismatched, or unverifiable data. Upload, registration, or
-  escrow failures leave local retry state and do not mark the gene live.
+---
 
-## Key Changes
+## Non-Negotiable Demo Cut
 
-- Extend Agentex storage from local:<sha256> to Filecoin Pin mainnet:
-    - Upload encrypted gene payload, public preview manifest, and score report.
-    - Store root CID, dataset ID, piece CID/CommP, PDP status, and retrieval URLs in receipts.
-    - Verify via Filecoin Pin dataset status before treating a gene as live.
-- Add a gene pipeline:
-    - Gene payload includes only MEMORY.md and AGENTS.md.
-    - Trade intents, receipts, and decision logs are evidence inputs for scoring, not sold
-      content.
-    - Apply `.agentexignore` deny rules before packaging secrets, wallets, account exports,
-      browser profiles, private keys, `.env`, and tool caches.
-    - Include source commit, parent commit, manifest hash, and redaction report hash in the public
-      manifest and receipt.
-    - Encrypt payload with a per-gene key; publish plaintext preview and hashes only.
-- Add a local OpenClaw cluster:
-    - Use the official Kubernetes install path with Kind.
-    - Deploy four isolated OpenClaw instances named alpha, beta, gamma, and delta.
-    - Give each instance distinct profile files, evidence, namespace, gateway token, and persisted state.
-    - Use each instance as both seller and buyer in the same exchange round.
-- Add ERC-8004 registration on Base mainnet:
-    - Agent card is stored with Filecoin Pin.
-    - Agent card references Aomi app endpoint, Agentex verification endpoint, gene manifest
-      CID, and supported trust mechanisms.
-- Add Filecoin Pay mainnet wallet support:
-    - Deploy or connect one Filecoin Pay wallet per demo agent on Filecoin mainnet.
-    - Record wallet address, funding status, and payment asset in the demo runbook.
-    - Use the Filecoin Pay wallets in the live exchange path, not only as setup evidence.
-- Add Arkhai/NLA escrowed exchange:
-    - Each buyer creates escrow with a natural-language demand requiring delivery of the decryption
-      key for the exact gene CID/hash.
-    - Each seller fulfills by submitting a delivery proof and buyer-encrypted gene key.
-    - Arkhai oracle/arbitration settles each payment.
-- Build the Aomi app as the primary UI:
-    - Seller side: inspect profile, create gene, upload, score, register, list.
-    - Buyer side: inspect preview/score, create escrow, verify delivery, decrypt, validate, export
-      to a review directory, and then merge only after diff review.
-    - Exchange round: alpha buys beta, beta buys gamma, gamma buys delta, and delta buys alpha.
-    - Evolution view: show starting genes, purchase receipts, breeding receipts, and second-generation
-      profile commits for all four agents.
-    - Aomi tools call a small Agentex HTTP service instead of shelling directly from the UI.
-    - Side-effect tools prepare or preview first, then require explicit confirmation before upload,
-      registration, escrow creation, fulfillment, or merge.
+Ship only this path:
 
-## Interfaces
+```text
+3 OpenClaw-style agent fixtures
+-> 3 extracted trade experiences
+-> 3 encrypted payloads pinned to IPFS/Filecoin
+-> 3 signed execution proofs for one whitelisted demo venue
+-> 3 registry attestations deployed onchain
+-> 3 listings
+-> 3 purchases in a closed loop
+-> 3 decrypted-hash verifications
+-> 3 buyer inbox imports
+```
 
-- OpenClaw Kubernetes scripts, from the OpenClaw checkout or a vendored demo copy:
-    - scripts/k8s/create-kind.sh
-    - OPENCLAW_NAMESPACE=openclaw-alpha ./scripts/k8s/deploy.sh
-    - OPENCLAW_NAMESPACE=openclaw-beta ./scripts/k8s/deploy.sh
-    - OPENCLAW_NAMESPACE=openclaw-gamma ./scripts/k8s/deploy.sh
-    - OPENCLAW_NAMESPACE=openclaw-delta ./scripts/k8s/deploy.sh
-- CLI additions:
-    - agentex gene create --repo <openclaw_dir> --agent <id> --evidence <dir>
-    - agentex gene score --gene <manifest>
-    - agentex gene upload --gene <manifest> --filecoin-mainnet
-    - agentex gene verify --manifest <cid-or-path>
-    - agentex gene export --receipt <purchase.json> --out <review_dir>
-    - agentex market fulfill --listing <id> --buyer-key <pubkey>
-- Aomi tool surface:
-    - inspect_openclaw_profile
-    - create_gene_asset
-    - score_gene_asset
-    - upload_gene_to_filecoin
-    - register_erc8004_agent
-    - create_gene_listing
-    - inspect_gene_listing
-    - create_gene_purchase
-    - verify_gene_delivery
-    - prepare_gene_breed
-    - record_gene_breeding
-- New schemas:
-    - agentex.gene_manifest.v1: selected file hashes, source commit, parent commit, manifest hash,
-      redaction report hash, encrypted payload CID, preview CID, score CID, Filecoin proof metadata.
-    - agentex.gene_score.v1: deterministic metrics plus Aomi-generated valuation note.
-    - agentex.market_listing.v1: seller agent, gene manifest CID, price, escrow UID, delivery
-      public-key requirement.
-    - agentex.purchase_receipt.v1: gene manifest CID, seller agent, buyer agent,
-      Filecoin Pin proof fields, ERC-8004 identity, escrow UID, buyer key envelope hash,
-      delivery proof hash, and verification status.
-    - agentex.breeding_receipt.v1: purchased gene, buyer pre-breed profile hash,
-      resulting profile commit, resulting file hashes, and breeding report CID.
+Closed loop:
 
-## 72-Hour Build Order
+```text
+alpha -> beta
+beta  -> gamma
+gamma -> alpha
+```
 
-- Day 1: OpenClaw Kubernetes assets, Kind cluster, four OpenClaw namespaces, distinct
-  alpha/beta/gamma/delta profile genes, Filecoin Pin mainnet storage, encrypted gene packaging,
-  score report, verification command.
-- Day 2: ERC-8004 agent card registration for all four agents, Filecoin Pay wallet setup,
-  Arkhai/NLA escrow wrappers, buyer-key delivery proof, four-gene listing state.
-- Day 3: Aomi app integration, autonomous exchange round, second-generation breeding receipts,
-  live end-to-end demo polish, submission docs, pitch rewrite around the agentic marketplace.
+## Hard Cuts
 
-## Test Plan
-- Unit tests:
-    - Gene packaging includes only the two agent profile files.
-    - `.agentexignore` and default deny patterns exclude secrets before encryption.
-    - Hash mismatch fails closed.
-    - Source commit or parent commit mismatch fails closed.
-    - Score formula is deterministic and does not depend on Aomi text.
-    - Encrypted payload cannot be verified without the gene key.
-    - Export writes a review directory and diff plan, not an automatic profile overwrite.
-    - Exchange planner creates a closed alpha -> beta -> gamma -> delta -> alpha round.
-- Integration tests:
-    - Kind deploy scripts can target four independent OpenClaw namespaces.
-    - Filecoin Pin upload output is parsed into receipt fields.
-    - Filecoin Pay wallet configuration is present for all four agents before live exchange runs.
-    - ERC-8004 token URI includes the pinned filename.
-    - Arkhai/NLA create, fulfill, status, and collect wrappers preserve escrow IDs.
-    - Aomi tool calls return compact JSON and require explicit confirmation for side effects.
-- Live acceptance:
-    - A judge can see alpha, beta, gamma, and delta running as separate OpenClaw instances in Kind.
-    - Each agent creates, uploads, scores, registers, and lists its own encrypted gene.
-    - The demo runs one autonomous exchange round: alpha buys beta, beta buys gamma, gamma buys delta,
-      and delta buys alpha.
-    - Each purchased gene decrypts after settlement and verifies against Filecoin/receipt hashes.
-    - Each agent produces a second-generation profile commit and breeding receipt.
-    - The demo shows Filecoin Pay mainnet wallets used by the exchange flow.
+- No Kubernetes or Kind cluster.
+- No broad UI.
+- No multi-venue support.
+- No autonomous trading wrapper.
+- No offchain broker/CEX support.
+- No quality scoring unless the core loop is already passing.
+- No settlement automation beyond purchase receipts and explicit payment references.
+- No ERC-8004 metadata, Aomi app, Filecoin Pay, or Arkhai until the three-agent loop is deployed.
 
-## Assumptions
+## Deployment Shape
 
-- Live-only demo, 72-hour scope.
-- Required funded wallets/API keys are available: Filecoin mainnet FIL/USDFC, Base mainnet ETH,
-  Arkhai/NLA token/RPC, Aomi API key, and LLM key for NLA oracle.
-- Local demo infrastructure uses Kind and the official OpenClaw Kubernetes install path.
-- Aomi is the agentic marketplace layer, not just a chat wrapper.
-- The public gene payload is encrypted; only preview, hashes, score, and provenance are public.
-- Monad remains optional post-hackathon infrastructure, not a required judged dependency.
-- References used: Aomi Agentic Application (https://aomi.dev/docs/agentic-application), Aomi
-  Overview (https://aomi.dev/docs/build/overview), Filecoin Pin FAQ
-  (https://docs.filecoin.io/builder-cookbook/filecoin-pin/faq), Filecoin Pin for ERC-8004 Agents
-  (https://docs.filecoin.io/builder-cookbook/filecoin-pin/erc-8004-agent-registration), ERC-8004
-  (https://eips.ethereum.org/EIPS/eip-8004), Arkhai (https://www.arkhai.io/), Arkhai NLA
-  (https://github.com/arkhai-io/natural-language-agreements), OpenClaw Kubernetes
-  (https://docs.openclaw.ai/install/kubernetes), OpenClaw Kubernetes notes
-  (`docs/knowledge/openclaw-cluster.md`).
+Use a real deployed registry contract plus local demo agents.
+
+Supported deployment modes:
+
+- **Local onchain smoke:** `anvil` plus `forge script --broadcast`, with `AGENTEX_STORAGE_MODE=local`.
+- **Public live demo:** any EVM testnet with a funded deployer wallet, RPC URL, and
+  `AGENTEX_STORAGE_MODE=filecoin`.
+
+The demo is complete when the runbook prints:
+
+```text
+registry=<address>
+agents=alpha,beta,gamma
+attestations=3
+listings=3
+purchases=3
+verified=3
+imports=3
+```
+
+## File Map
+
+- Create `src/experience.ts`: trade-experience schema, extraction, encryption, decryption, hash
+  verification, review-directory export.
+- Create `src/venue.ts`: whitelisted venue config, execution-proof schema, signer verification,
+  price-closeness validation.
+- Create `src/registry.ts`: registry-attestation schema, local validation, onchain calldata/receipt
+  helpers.
+- Create `contracts/AgentexExperienceRegistry.sol`: minimal onchain attestation registry.
+- Create `script/DeployAgentexExperienceRegistry.s.sol`: Foundry deploy script.
+- Create `foundry.toml`: minimal Foundry config.
+- Modify `src/filecoin.ts`: expose a deterministic local CID fallback and real Filecoin upload path
+  behind the same return shape.
+- Modify `src/market.ts`: experience listing and purchase receipts.
+- Modify `src/tools.ts`: compact Aomi-compatible tool surface.
+- Modify `src/cli.ts`: `experience`, `venue`, `registry`, `market`, and `demo` commands.
+- Modify `src/index.ts`: export new modules.
+- Rewrite `test/agentex.test.ts`: focused live-spine tests.
+- Create `demo/live-v1/.env.example`: deploy and demo environment variables.
+- Create `demo/live-v1/README.md`: exact end-to-end runbook.
+- Create `demo/live-v1/run-three-agent-loop.sh`: one command for the final demo.
+- Create `demo/live-v1/agents/alpha/.openclaw/memory/2026-05-18.md`.
+- Create `demo/live-v1/agents/alpha/activity/trade.json`.
+- Create `demo/live-v1/agents/beta/.openclaw/memory/2026-05-18.md`.
+- Create `demo/live-v1/agents/beta/activity/trade.json`.
+- Create `demo/live-v1/agents/gamma/.openclaw/memory/2026-05-18.md`.
+- Create `demo/live-v1/agents/gamma/activity/trade.json`.
+- Create `demo/live-v1/agents/alpha/inbox/.gitkeep`.
+- Create `demo/live-v1/agents/beta/inbox/.gitkeep`.
+- Create `demo/live-v1/agents/gamma/inbox/.gitkeep`.
+
+## Task 1: Experience Payload Core
+
+**Files:**
+- Create: `src/experience.ts`
+- Modify: `src/shared.ts`
+- Test: `test/agentex.test.ts`
+
+- [ ] Add `TradeExperience`, `EncryptedExperiencePayload`, and `ExperienceManifest` types.
+- [ ] Implement `extractTradeExperience({ memoryPath, activityPath, outDir })`.
+- [ ] Implement `encryptTradeExperience({ experiencePath, key })`.
+- [ ] Implement `verifyExperiencePayload({ manifestPath, key })`.
+- [ ] Implement `exportExperienceForReview({ manifestPath, key, out })`.
+- [ ] Test extraction for exactly one buy/sell experience.
+- [ ] Test that encrypted payload does not expose pre-trade reasoning.
+- [ ] Test that decrypted hash mismatches fail closed.
+- [ ] Run:
+
+```bash
+npm test
+npm run typecheck
+```
+
+## Task 2: Whitelisted Venue Execution Proof
+
+**Files:**
+- Create: `src/venue.ts`
+- Test: `test/agentex.test.ts`
+
+- [ ] Add one demo venue ID: `demo-uniswap-v2`.
+- [ ] Add `ExecutionProof` type with chain ID, venue ID, trade TxHash, pair, side, size, actual fill
+  price, execution block/time, decoder ID, and decoder signature.
+- [ ] Implement deterministic local proof signing.
+- [ ] Implement proof verification and price-closeness check.
+- [ ] Test valid proof acceptance.
+- [ ] Test wrong pair, wrong side, wrong signer, duplicate TxHash, and out-of-tolerance price
+  rejection.
+- [ ] Run:
+
+```bash
+npm test
+npm run typecheck
+```
+
+## Task 3: Minimal Registry Contract And Deploy Script
+
+**Files:**
+- Create: `contracts/AgentexExperienceRegistry.sol`
+- Create: `script/DeployAgentexExperienceRegistry.s.sol`
+- Create: `foundry.toml`
+- Create: `src/registry.ts`
+- Test: `test/agentex.test.ts`
+
+- [ ] Add a minimal contract that stores accepted attestation hashes and emits
+  `ExperienceAttested`.
+- [ ] Keep contract fields compact: seller, chain ID, venue ID, trade TxHash, encrypted CID,
+  decrypted hash, execution proof hash, execution timestamp, attestation deadline.
+- [ ] Enforce fixed deadline from execution timestamp.
+- [ ] Enforce duplicate/conflict rejection by `(seller, chainId, tradeTxHash)`.
+- [ ] Add deploy script reading `ATTESTATION_WINDOW_SECONDS`.
+- [ ] Make the deploy script write the deployed address to
+  `demo/live-v1/out/registry-address.txt`.
+- [ ] Verify contract compilation:
+
+```bash
+forge build
+```
+
+- [ ] In TypeScript, implement `createRegistryAttestation`.
+- [ ] In TypeScript, implement `submitRegistryAttestation` with viem.
+- [ ] In TypeScript, implement local validation mirroring the contract checks.
+- [ ] Test deadline rejection, duplicate rejection, accepted attestation receipt creation, and
+  calldata generation.
+- [ ] Run:
+
+```bash
+npm test
+npm run typecheck
+forge build
+```
+
+## Task 4: Filecoin/IPFS Storage Path
+
+**Files:**
+- Modify: `src/filecoin.ts`
+- Modify: `src/experience.ts`
+- Test: `test/agentex.test.ts`
+
+- [ ] Add `storeEncryptedExperience({ manifestPath, payloadPath, mode })`.
+- [ ] Support `mode=local` for deterministic `local:<sha256>` smoke-test fallback.
+- [ ] Support `mode=filecoin` using existing Filecoin upload plumbing.
+- [ ] Store the returned encrypted CID/ref in the manifest and later listing.
+- [ ] Test local mode.
+- [ ] Test Filecoin mode input validation without requiring live credentials.
+- [ ] Run:
+
+```bash
+npm test
+npm run typecheck
+```
+
+## Task 5: Experience Listing And Purchase
+
+**Files:**
+- Modify: `src/market.ts`
+- Test: `test/agentex.test.ts`
+
+- [ ] Replace listing fields with experience fields: attestation ID, experience ID, encrypted CID,
+  decrypted hash, public trade summary, price, asset, delivery requirement, status.
+- [ ] Replace purchase receipt fields with buyer, seller, listing ID, attestation ID, encrypted CID,
+  decrypted hash, payment reference, delivery proof, and verification statuses.
+- [ ] Require accepted attestation status before listing.
+- [ ] Test that unaccepted attestations cannot be listed.
+- [ ] Test that purchase receipts bind the same encrypted CID and decrypted hash as the listing.
+- [ ] Run:
+
+```bash
+npm test
+npm run typecheck
+```
+
+## Task 6: CLI, HTTP Tools, And Demo Command
+
+**Files:**
+- Modify: `src/cli.ts`
+- Modify: `src/tools.ts`
+- Modify: `src/index.ts`
+- Test: `test/agentex.test.ts`
+
+- [ ] Add CLI commands:
+
+```bash
+agentex experience extract
+agentex experience encrypt
+agentex experience store
+agentex experience verify
+agentex experience export
+agentex venue proof
+agentex registry attest
+agentex market list
+agentex market buy
+agentex demo run-three-agent-loop
+```
+
+- [ ] Add HTTP/Aomi-compatible tools:
+
+```text
+inspect_openclaw_activity
+extract_trade_experience
+encrypt_trade_experience
+store_encrypted_experience
+create_execution_proof
+prepare_registry_attestation
+submit_registry_attestation
+create_experience_listing
+create_experience_purchase
+verify_experience_delivery
+prepare_experience_ingestion
+```
+
+- [ ] Keep every write tool prepare-first with `confirm:true`.
+- [ ] Test one CLI happy path by invoking:
+
+```bash
+node --import tsx src/cli.ts experience extract \
+  --memory demo/live-v1/agents/alpha/.openclaw/memory/2026-05-18.md \
+  --activity demo/live-v1/agents/alpha/activity/trade.json \
+  --out demo/live-v1/out/alpha
+```
+- [ ] Test one HTTP tool call through `createAgentexServer`.
+- [ ] Run:
+
+```bash
+npm test
+npm run typecheck
+```
+
+## Task 7: Three-Agent Fixtures
+
+**Files:**
+- Create: `demo/live-v1/.env.example`
+- Create: `demo/live-v1/agents/alpha/.openclaw/memory/2026-05-18.md`
+- Create: `demo/live-v1/agents/alpha/activity/trade.json`
+- Create: `demo/live-v1/agents/beta/.openclaw/memory/2026-05-18.md`
+- Create: `demo/live-v1/agents/beta/activity/trade.json`
+- Create: `demo/live-v1/agents/gamma/.openclaw/memory/2026-05-18.md`
+- Create: `demo/live-v1/agents/gamma/activity/trade.json`
+- Create: `demo/live-v1/agents/alpha/inbox/.gitkeep`
+- Create: `demo/live-v1/agents/beta/inbox/.gitkeep`
+- Create: `demo/live-v1/agents/gamma/inbox/.gitkeep`
+
+- [ ] Add one memory file per agent with pre-trade context, decision reasoning, and immediate
+  post-trade reflection.
+- [ ] Add one activity record per agent with matching trade fields:
+  - `alpha`: ETH/USDC buy
+  - `beta`: SOL/USDC sell
+  - `gamma`: WBTC/USDC buy
+- [ ] Add `.env.example`:
+
+```bash
+RPC_URL=http://127.0.0.1:8545
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+REGISTRY_ADDRESS=
+ATTESTATION_WINDOW_SECONDS=900
+AGENTEX_EXPERIENCE_KEY=0123456789abcdef0123456789abcdef
+AGENTEX_STORAGE_MODE=filecoin
+FILECOIN_PRIVATE_KEY=
+DEMO_DECODER_SECRET=demo-decoder-secret
+DEMO_PRICE_TOLERANCE_BPS=50
+```
+
+- [ ] Run fixture extraction for all three agents.
+
+## Task 8: End-To-End Deployment Runbook
+
+**Files:**
+- Create: `demo/live-v1/README.md`
+- Create: `demo/live-v1/run-three-agent-loop.sh`
+
+- [ ] Write the local onchain smoke commands:
+
+```bash
+npm install
+npm test
+npm run typecheck
+forge build
+anvil
+source demo/live-v1/.env
+export AGENTEX_STORAGE_MODE=local
+forge script script/DeployAgentexExperienceRegistry.s.sol:DeployAgentexExperienceRegistry \
+  --rpc-url "$RPC_URL" \
+  --private-key "$PRIVATE_KEY" \
+  --broadcast
+test -s demo/live-v1/out/registry-address.txt
+export REGISTRY_ADDRESS="$(cat demo/live-v1/out/registry-address.txt)"
+```
+
+- [ ] Write the public live deployment command:
+
+```bash
+source demo/live-v1/.env
+export AGENTEX_STORAGE_MODE=filecoin
+forge script script/DeployAgentexExperienceRegistry.s.sol:DeployAgentexExperienceRegistry \
+  --rpc-url "$RPC_URL" \
+  --private-key "$PRIVATE_KEY" \
+  --broadcast \
+  --verify
+test -s demo/live-v1/out/registry-address.txt
+export REGISTRY_ADDRESS="$(cat demo/live-v1/out/registry-address.txt)"
+```
+
+- [ ] Write the service startup command:
+
+```bash
+node --import tsx src/cli.ts serve --host 127.0.0.1 --port 8787
+```
+
+- [ ] Write the scripted three-agent loop command:
+
+```bash
+bash demo/live-v1/run-three-agent-loop.sh
+```
+
+- [ ] Make the script run this exact loop:
+  - alpha extracts, encrypts, stores, proves, attests, lists
+  - beta extracts, encrypts, stores, proves, attests, lists
+  - gamma extracts, encrypts, stores, proves, attests, lists
+  - beta buys alpha
+  - gamma buys beta
+  - alpha buys gamma
+  - each buyer verifies and exports the purchased experience into its inbox
+
+- [ ] Make the script write final artifacts under `demo/live-v1/out/`:
+
+```text
+alpha/manifest.json
+alpha/payload.enc.json
+alpha/execution-proof.json
+alpha/attestation.json
+alpha/listing.json
+beta/purchase-alpha.json
+beta/inbox/<alpha-experience-id>/experience.md
+beta/manifest.json
+beta/payload.enc.json
+beta/execution-proof.json
+beta/attestation.json
+beta/listing.json
+gamma/purchase-beta.json
+gamma/inbox/<beta-experience-id>/experience.md
+gamma/manifest.json
+gamma/payload.enc.json
+gamma/execution-proof.json
+gamma/attestation.json
+gamma/listing.json
+alpha/purchase-gamma.json
+alpha/inbox/<gamma-experience-id>/experience.md
+summary.json
+```
+
+- [ ] Make `summary.json` include:
+
+```json
+{
+  "registry": "0x1111111111111111111111111111111111111111",
+  "agents": ["alpha", "beta", "gamma"],
+  "attestations": 3,
+  "listings": 3,
+  "purchases": 3,
+  "verified": 3,
+  "imports": 3
+}
+```
+
+## Task 9: Final Deployment Check
+
+**Files:**
+- Modify only if verification reveals a real gap.
+
+- [ ] Run:
+
+```bash
+npm test
+npm run typecheck
+forge build
+```
+
+- [ ] Run the local onchain smoke from `demo/live-v1/README.md`.
+- [ ] Run the public live deployment from `demo/live-v1/README.md` when RPC, wallet, and Filecoin
+  credentials are available.
+- [ ] Run:
+
+```bash
+bash demo/live-v1/run-three-agent-loop.sh
+cat demo/live-v1/out/summary.json
+```
+
+- [ ] Confirm the final demo shows:
+  - deployed registry address
+  - three encrypted experience refs/CIDs
+  - three signed execution proofs
+  - three registry attestations
+  - three live listings
+  - three purchase receipts
+  - three decrypted-hash verifications
+  - three buyer inbox imports
+
+## Optional After The Core Demo Works
+
+Add these only after Task 9 passes:
+
+- ERC-8004 registration metadata.
+- Aomi app surface around the HTTP tools.
+- Filecoin Pay or Arkhai settlement integration.
+- Fourth agent.
+
+## Acceptance Criteria
+
+- A reviewer can run one documented command sequence and see a deployed three-agent experience
+  market loop.
+- At least three agents participate as both sellers and buyers.
+- Each experience is encrypted before listing.
+- Each public record binds trade summary, encrypted ref/CID, decrypted hash, execution proof, and
+  seller attestation.
+- The fixed attestation deadline and price-closeness checks are enforced.
+- Each buyer decrypts and verifies the exact purchased payload.
+- The final summary reports `attestations=3`, `listings=3`, `purchases=3`, `verified=3`, and
+  `imports=3`.

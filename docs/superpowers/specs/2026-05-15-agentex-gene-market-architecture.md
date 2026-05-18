@@ -1,180 +1,296 @@
-# Agentex Gene Market Architecture
+# Agentex Experience Market Architecture
 
-Date: 2026-05-15
+Date: 2026-05-18
 
 ## Summary
 
-Agentex is a gene market for onchain AI agents.
+Agentex is an onchain experience market for trading agents.
 
-In v1, the market serves OpenClaw trading agents. A gene is the small profile bundle that shapes an
-agent's behavior:
+The atomic asset is a trade experience: one buy or sell event, the LLM-generated context and
+reasoning that caused it, and the immediate post-trade reflection. The trade and memory pinning
+happen separately. Agentex binds them through a smart-contract registry attestation submitted
+shortly after execution.
 
-```text
-AGENTS.md
-MEMORY.md
-```
-
-These files are the agent's genotype. The carrier agent's onchain behavior is the phenotype. A gene
-is successful when its carrier earns, manages risk well, and other agents buy and breed it with
-their own profile genes.
-
-The stack is:
-
-- ERC-8004: agent identity, reputation, validation hooks.
-- IPFS/Filecoin Pin: gene artifact, manifest, score report, evidence storage.
-- Filecoin Pay: payment rails for the gene market.
-- Arkhai: escrow and natural-language sale conditions.
-- Aomi: the agent-facing interface of the market.
-
-The local hackathon topology runs four OpenClaw instances in a Kind cluster:
-
-- alpha
-- beta
-- gamma
-- delta
-
-Each instance starts with its own profile gene, participates as both buyer and seller, and breeds
-external genes into its own Git history.
-
-## Product Boundary
-
-Agentex sells verifiable agent genes, not trades.
-
-It is not a trading bot, signal marketplace, prompt gallery, background memory watcher, hidden trade
-hook, generic document store, or deterministic model-output replay system.
+V1 serves OpenClaw trading agents that trade on whitelisted onchain venues. Each experience is
+encrypted, pinned to IPFS/Filecoin, and publicly committed through an attestation that includes the
+trade TxHash, venue, pair, side, size, fill price, execution block/time, encrypted experience CID,
+decrypted content hash, seller-agent signature, and a signed execution proof from a whitelisted
+venue decoder.
 
 The product promise is narrow:
 
 ```text
-This exact profile gene existed, was sold by this agent, was stored here, was sold under
-these terms, and was bred into this buyer agent's profile history.
+This exact trading agent executed this exact onchain trade, committed this exact encrypted reasoning
+object shortly after execution, and sold decryption access under these terms.
 ```
+
+## Product Boundary
+
+Agentex sells verifiable trading experiences. Experience records are treated as immutable once
+created. Immutability comes from content addressing, seller-agent signatures, registry timestamps,
+and pinned encrypted payloads.
+
+The source OpenClaw daily memory file remains an internal container:
+
+```text
+.openclaw/memory/YYYY-MM-DD.md
+```
+
+The sellable asset is an extracted trade-experience object, not the whole daily file. Agentex must
+not require buyers to trust the mutable local file after the experience has been pinned and
+attested.
 
 ## Market Thesis
 
-Autonomous agents will become economic actors: they hold wallets, manage assets, publish services,
-and transact with each other. Once agents are first-class onchain users, useful behavior patterns
-become tradable capital.
+Autonomous trading agents improve through accumulated experience. Public onchain transactions show
+what happened, but not why an agent acted, what context it observed, which alternatives it rejected,
+or what it learned immediately after execution.
 
-For OpenClaw agents, those behavior patterns live in profile files:
+Agentex creates a market for that missing layer:
 
-- `AGENTS.md`: operating rules, tool discipline, risk boundaries.
-- `MEMORY.md`: lessons, market observations, mistakes, strategy updates.
+- execution creates a public trade record
+- inference creates private reasoning
+- pinning creates a content-addressed encrypted object
+- registry attestation binds the trade and reasoning under a deadline
+- buyers purchase decryption access
+- bought experiences feed future reflection and policy updates
 
-Agentex creates selection pressure:
-
-- performance creates demand
-- demand creates purchases
-- purchases create breeding events
-- breeding events create Git descendants
-- Git descendants create usage evidence
-- usage evidence feeds gene reputation
-
-The market is successful when strong genes spread with proof.
+The market is successful when useful trading logic, including wins, losses, avoided risks, and hard
+execution lessons, can be bought with proof instead of copied from unverifiable claims.
 
 ## Core Primitives
 
 ### Agent
 
-An agent is an ERC-8004-registered onchain user.
+An agent is an ERC-8004-registered onchain actor.
 
 Agent roles:
 
-- carrier: runs with a gene
-- seller: lists a gene
-- buyer: purchases a gene
-- validator: verifies a claim, artifact, score, delivery, or breeding record
+- seller: executes trades and lists attested experiences
+- buyer: purchases and verifies encrypted experiences
+- validator: checks venue decoding, attestation validity, storage, delivery, or buyer feedback
 
-Agents are referenced by `{agentRegistry, agentId}`. Their registration file should advertise the
-Aomi app endpoint, Agentex verification endpoint, wallet/payment metadata, and supported trust
+Agents are referenced by `{agentRegistry, agentId}`. Their registration metadata advertises the Aomi
+app endpoint, Agentex verification endpoint, wallet/payment metadata, supported venues, and trust
 mechanisms.
 
-### Gene
+### Whitelisted Venue
 
-A gene is a portable OpenClaw profile asset.
+A whitelisted venue is an onchain trading venue whose execution logs Agentex can decode.
 
-V1 gene contents are exactly:
+Each venue adapter must define:
 
-- `AGENTS.md`
-- `MEMORY.md`
+- supported chain ID
+- venue contract addresses
+- supported event signatures
+- pair and token normalization rules
+- side inference rules
+- fill price calculation
+- slippage or price-closeness tolerance
+- finality requirement
+- authorized execution-proof signer set
 
-Trade logs, decisions, receipts, and portfolio history are evidence. They are not sold as the gene by
-default.
+V1 accepts only trades from whitelisted venues. Broker orders, CEX fills, and arbitrary onchain
+transactions are out of scope until they can be normalized and verified with the same rigor.
 
-### Gene Artifact
+### Execution Proof
 
-A gene artifact has public metadata and private payload.
+An execution proof is a signed statement from a whitelisted venue decoder.
+
+The decoder reads public chain data for the trade TxHash, normalizes the venue-specific logs, and
+signs:
+
+- chain ID
+- venue ID
+- trade TxHash
+- pair
+- side
+- size
+- actual fill price
+- execution block number
+- execution timestamp
+- decoder ID
+- decoder signature
+
+The Agentex registry verifies the decoder signature and checks the attested trade fields against the
+execution proof. The registry does not fetch historical transaction receipts directly.
+
+### Trade Experience
+
+A trade experience is the private payload sold in the market.
+
+Required contents:
+
+- schema: `agentex.trade_experience.v1`
+- experience ID
+- seller agent
+- trade TxHash
+- chain ID
+- venue ID
+- pair
+- side: `buy` or `sell`
+- size
+- fill price
+- execution block and timestamp
+- pre-trade context timestamp
+- pre-trade market context
+- pre-trade reasoning that caused the action
+- immediate post-trade reflection timestamp
+- immediate post-trade reflection
+- source memory path, if extracted from `.openclaw/memory/YYYY-MM-DD.md`
+
+The payload must stay bounded to one trading action. A multi-trade story, strategy essay, daily
+memory dump, or portfolio report is not a single V1 experience.
+
+### Experience Artifact
+
+An experience artifact has public commitments and private content.
 
 Public:
 
-- gene ID
+- experience ID
 - seller agent
-- source commit and parent commit
-- file hashes
-- manifest CID
-- preview CID
-- score report CID
-- encrypted payload CID
-- Filecoin Pin proof fields
+- chain ID and whitelisted venue ID
+- trade TxHash
+- pair, side, size, fill price
+- execution block and timestamp
+- encrypted experience CID
+- decrypted experience SHA-256 hash
+- execution proof hash
+- storage proof fields
+- attestation registry address and attestation ID
+- optional listing and purchase state
 
-Private until settlement:
+Private until purchase:
 
-- encrypted profile files
-- per-gene decryption key
+- pre-trade market context
+- pre-trade reasoning
+- immediate post-trade reflection
+- raw prompt/tool context included by the seller
+- decryption material
 
-### Evidence
+### Registry Attestation
 
-Evidence supports a gene's fitness claim.
+A registry attestation is the canonical proof that a trade and encrypted experience belong together.
 
-Evidence may include onchain transactions, portfolio snapshots, execution logs, trade intents,
-decision receipts, performance reports, purchase receipts, and breeding receipts.
+The seller agent signs and submits:
 
-Any evidence used for scoring or validation must be content-addressed.
+- seller agent reference
+- chain ID
+- whitelisted venue ID
+- trade TxHash
+- pair
+- side
+- size
+- fill price
+- execution block number
+- execution timestamp
+- encrypted experience CID
+- decrypted experience SHA-256 hash
+- execution proof hash
+- attestation timestamp
+- seller nonce
 
-### Fitness
+The Agentex registry accepts the attestation only if:
 
-Fitness is a gene's market strength.
+- the seller agent identity resolves
+- the venue is whitelisted
+- the execution proof signer is authorized for the venue
+- the execution proof states the same chain ID, venue ID, and trade TxHash
+- the execution proof states the same pair, side, and size
+- the attested fill price remains within the venue-specific tolerance of the proof's actual fill
+  price
+- the attestation is submitted within the fixed post-execution window
+- the seller signature matches the registered agent identity
+- the same trade TxHash has not already been attested by the same seller for a conflicting
+  experience
 
-It has three parts:
-
-- performance: return, drawdown, volatility, risk-adjusted yield
-- discipline: risk-rule adherence, reflection quality, consistency, evidence depth
-- adoption: purchases, breeding events, buyer feedback
-
-The deterministic score must be reproducible from structured metrics. A model may write a valuation
-note, but the note cannot change the deterministic score.
+The registry cannot read encrypted reasoning. It commits to the encrypted CID and decrypted content
+hash. Buyers verify the plaintext hash after purchase.
 
 ### Listing
 
-A listing sells one exact gene manifest.
+A listing sells decryption access to one attested experience.
 
-It binds seller agent, manifest CID, encrypted payload CID, score report CID, price, payment asset,
-escrow terms, delivery requirement, and listing status.
+It binds:
+
+- listing ID
+- seller agent
+- attestation ID
+- experience ID
+- encrypted experience CID
+- decrypted experience hash
+- public trade summary
+- price amount
+- payment asset
+- settlement framework
+- delivery requirement
+- listing status
+
+Only registry-accepted attestations can be listed.
 
 ### Purchase
 
-A purchase is complete only when the buyer verifies and decrypts the exact advertised gene.
+A purchase is complete only when the buyer can decrypt and verify the exact advertised experience.
 
-The purchase receipt binds buyer, seller, listing, escrow ID, payment status, delivery proof, manifest
-CID, payload CID, and verification result.
+The purchase receipt binds:
 
-### Breeding
+- purchase ID
+- listing ID
+- buyer agent
+- seller agent
+- attestation ID
+- payment asset, amount, and status
+- encrypted experience CID
+- decrypted experience hash
+- key envelope or access-grant reference
+- delivery proof
+- decryption verification result
+- storage verification result
+- identity verification result
 
-Breeding is market-visible gene exchange.
+After purchase, the buyer ingests the decrypted experience into its own memory, vector store, or
+strategy state. Agentex records the purchase and verification outcome.
 
-Types:
+### Experience Quality
 
-- full breed: combine the purchased gene with the buyer agent's current profile
-- selective breed: combine selected sections with the buyer agent's current profile
+Quality is a market signal, not a validity condition.
 
-Each breeding event creates a descendant profile commit in the buyer agent's Git graph. The Git graph
-is the evolution tree: branches represent variants, and breeding commits record how external genes
-entered the profile history.
+Validity proves that the experience is bound to a real whitelisted onchain trade. Quality helps
+buyers decide whether to purchase it.
 
-Every breeding event creates a receipt. Breeding receipts must reference the purchased gene, the
-buyer agent's pre-breed profile state, breeding inputs, resulting commit, and resulting file hashes.
+V1 quality signals may include:
+
+- realized post-trade return over declared horizons
+- drawdown after entry
+- slippage versus expected price
+- risk-rule adherence
+- reasoning completeness
+- post-trade reflection usefulness
+- buyer feedback after purchase
+
+Deterministic metrics must be reproducible from public trade data and declared horizons. A model may
+write a valuation note, but it must not change deterministic scores.
 
 ## Protocol Roles
+
+### Agentex Registry Contract
+
+The registry contract is the proof anchor.
+
+Responsibilities:
+
+- maintain whitelisted venue IDs and adapter metadata references
+- maintain authorized execution-proof signers per venue
+- accept signed seller attestations
+- enforce the fixed attestation deadline
+- enforce field equality and fill-price closeness against signed execution proofs
+- reject duplicate or conflicting attestations
+- emit attestation events for indexing
+- expose attestation status for listings and verification
+
+The registry does not custody encrypted payloads, decrypt reasoning, score experiences, or execute
+trades. It also does not fetch historical transaction receipts directly.
 
 ### ERC-8004
 
@@ -182,42 +298,49 @@ ERC-8004 is the identity and trust layer.
 
 Agentex uses:
 
-- Identity Registry to identify carriers, sellers, buyers, and validators.
-- Registration files to point to Aomi, Agentex, Filecoin/IPFS metadata, wallets, and trust methods.
-- Reputation Registry for buyer feedback, seller reliability, breeding success, and gene reputation.
-- Validation Registry for independent checks of gene integrity, scoring evidence, delivery, or
-  breeding records.
+- Identity Registry to identify sellers, buyers, and validators.
+- Registration files to point to Aomi, Agentex verification endpoints, Filecoin/IPFS metadata,
+  wallets, supported venues, and trust methods.
+- Reputation Registry for seller reliability, buyer feedback, delivery quality, and experience
+  usefulness.
+- Validation Registry for independent checks of attestation validity, venue decoding, storage, or
+  delivery.
 
-Registration proves identity, not quality. Agentex must bind identity to content, evidence, market
-receipts, and validation records.
+Registration proves identity, not experience quality. Agentex must bind identity to trades, content,
+market receipts, and validation records.
 
 ### IPFS and Filecoin Pin
 
-IPFS is the content-addressed store.
+IPFS is the content-addressed store. Filecoin Pin makes encrypted market artifacts persistent.
 
-Filecoin Pin makes market artifacts persistent. Receipts should record root CID, manifest CID,
-encrypted payload CID, score CID, dataset ID when available, piece CID or CommP when available, PDP
-or storage status when available, and retrieval URLs.
+Receipts record:
 
-An asset is not live until its storage status is verified.
+- encrypted experience CID
+- storage root CID when applicable
+- dataset ID, when returned by the storage provider
+- piece CID or CommP, when returned by the storage provider
+- PDP or storage status, when returned by the storage provider
+- retrieval URLs
+
+An experience cannot be listed until storage status is verified. Anything uploaded unencrypted to
+IPFS/Filecoin is public.
 
 ### Filecoin Pay
 
 Filecoin Pay is the payment rail.
 
 Each listing must make the payment asset explicit. The product may use FIL or Filecoin-supported
-stable assets such as USDFC. The market economy is Filecoin-native, but receipts should not imply a
-single hardcoded currency unless the live flow actually uses it.
+stable assets such as USDFC. Receipts record the asset used by the live flow.
 
 ### Arkhai
 
-Arkhai is the conditional commerce layer.
+Arkhai is the conditional commerce layer for V1 settlement.
 
-The core natural-language agreement should stay narrow:
+The core natural-language agreement stays narrow:
 
 ```text
-Release payment if the seller delivers a buyer-encrypted decryption key that unlocks the exact gene payload
-identified by this manifest CID and these file hashes.
+Release payment if the seller delivers decryption access that unlocks the encrypted experience CID
+and produces plaintext whose SHA-256 hash matches the Agentex registry attestation.
 ```
 
 Agentex records escrow ID, fulfillment proof, arbitration/oracle result, and collection status in
@@ -227,64 +350,104 @@ the purchase receipt.
 
 Aomi is the agent interface.
 
-Agents use Aomi to inspect, create, score, list, buy, verify, and breed genes. The Aomi app should
-expose intent-shaped tools instead of raw protocol endpoints.
+Agents use Aomi to inspect activity, extract experiences, pin encrypted payloads, attest registry
+records, list, buy, verify, and ingest experiences. The Aomi app exposes intent-shaped tools
+instead of raw protocol endpoints.
 
 Side effects must follow prepare-first execution:
 
 1. preview the action
 2. show the exact identifiers and risks
 3. require explicit confirmation
-4. execute through the Agentex service or host wallet flow
+4. execute through the Agentex service, registry contract, or host wallet flow
 5. verify the result before reporting success
 
 ### Agentex Service
 
-The Agentex service owns the market logic:
+The Agentex service owns offchain market logic:
 
-- profile inspection
-- gene packaging
+- OpenClaw memory and activity-log inspection
+- experience extraction
 - redaction checks
-- deterministic scoring
-- Filecoin Pin upload and verification
+- encryption and decrypted-hash calculation
+- IPFS/Filecoin Pin upload and verification
+- whitelisted venue decoding
+- execution proof creation and verification
+- registry attestation preparation
 - ERC-8004 registration helpers
 - listing creation
 - purchase verification
-- export and breeding preparation
-- breeding receipt creation
+- experience export and ingestion preparation
 
 Aomi calls the service. The Aomi UI must not shell directly into local commands.
 
 ## Data Contracts
 
-### Gene Manifest
+### Trade Experience
 
 Required fields:
 
-- schema: `agentex.gene_manifest.v1`
-- gene ID
-- gene format: `openclaw.profile.v1`
+- schema: `agentex.trade_experience.v1`
+- experience ID
 - seller agent `{agentRegistry, agentId}`
-- source commit and parent commit
-- file hashes for `AGENTS.md`, `MEMORY.md`
-- encrypted payload CID
-- preview CID
-- score report CID
-- redaction report hash
-- Filecoin Pin proof fields
-- breeding provenance when available
+- chain ID
+- whitelisted venue ID
+- trade TxHash
+- pair
+- side
+- size
+- fill price
+- execution block and timestamp
+- pre-trade context timestamp
+- pre-trade market context
+- pre-trade reasoning
+- immediate post-trade reflection timestamp
+- immediate post-trade reflection
+- optional source memory path
 
-### Score Report
+### Experience Manifest
 
 Required fields:
 
-- schema: `agentex.gene_score.v1`
-- gene ID
-- evidence CIDs
-- deterministic metrics
-- deterministic score
-- scoring formula version
-- optional model-written valuation note
+- schema: `agentex.experience_manifest.v1`
+- experience ID
+- seller agent
+- chain ID
+- whitelisted venue ID
+- trade TxHash
+- public trade summary
+- encrypted experience CID
+- encrypted experience hash
+- decrypted experience hash
+- execution proof hash
+- storage proof fields
+- redaction report hash
+- attestation registry
+- optional attestation ID after registry acceptance
+
+### Registry Attestation
+
+Required fields:
+
+- schema: `agentex.registry_attestation.v1`
+- seller agent
+- chain ID
+- whitelisted venue ID
+- trade TxHash
+- pair
+- side
+- size
+- fill price
+- execution block and timestamp
+- encrypted experience CID
+- decrypted experience hash
+- execution proof hash
+- attestation timestamp
+- attestation deadline
+- seller nonce
+- seller signature
+- registry transaction hash
+- status: `pending`, `accepted`, `rejected`, or `expired`
 
 ### Listing
 
@@ -293,13 +456,15 @@ Required fields:
 - schema: `agentex.market_listing.v1`
 - listing ID
 - seller agent
-- manifest CID
-- encrypted payload CID
-- score report CID
+- attestation ID
+- experience ID
+- encrypted experience CID
+- decrypted experience hash
+- public trade summary
 - price amount
 - payment asset
-- escrow framework and demand
-- delivery public key requirement
+- settlement framework and demand
+- delivery requirement
 - status: `draft`, `live`, `sold`, `cancelled`, or `expired`
 
 ### Purchase Receipt
@@ -307,47 +472,52 @@ Required fields:
 Required fields:
 
 - schema: `agentex.purchase_receipt.v1`
+- purchase ID
 - listing ID
 - buyer agent
 - seller agent
-- manifest CID
-- encrypted payload CID
-- escrow ID
+- attestation ID
+- encrypted experience CID
+- decrypted experience hash
 - payment asset, amount, and status
-- buyer delivery public key
-- key envelope hash
+- escrow ID or settlement reference
+- key envelope hash or access-grant reference
 - delivery proof hash
 - decryption verification result
 - storage verification result
 - identity verification result
 
-### Breeding Receipt
+### Quality Report
 
 Required fields:
 
-- schema: `agentex.breeding_receipt.v1`
-- type: `full_breed` or `selective_breed`
-- buyer agent
-- purchased gene ID
-- purchased manifest CID
-- buyer pre-breed profile hash
-- breeding report CID
-- resulting profile commit
-- resulting file hashes
+- schema: `agentex.experience_quality.v1`
+- experience ID
+- attestation ID
+- deterministic metrics
+- deterministic score
+- scoring formula version
+- declared post-trade horizons
+- optional model-written valuation note
 
 ## Lifecycle
 
-1. Inspect: seller agent selects profile files and evidence.
-2. Package: Agentex hashes files, applies redaction rules, encrypts payload, writes manifest.
-3. Score: Agentex computes deterministic metrics and optional valuation note.
-4. Store: Agentex uploads manifest, payload, preview, score, and evidence to IPFS/Filecoin Pin.
-5. Register: seller agent updates ERC-8004 metadata with market and verification endpoints.
-6. List: seller creates Arkhai escrow terms and publishes the listing.
-7. Buy: buyer inspects listing, score, preview, evidence, identity, and payment terms.
-8. Settle: buyer pays through the Filecoin Pay path; seller fulfills with a buyer-encrypted decryption key.
-9. Verify: buyer verifies payload, hashes, identity, escrow, payment, and delivery.
-10. Breed: buyer exports to a review directory and creates a breeding commit only after confirmation.
-11. Record: Agentex records the breeding provenance.
+1. Execute: seller agent executes one buy or sell trade on a whitelisted onchain venue.
+2. Extract: Agentex extracts the single trade experience from OpenClaw memory/activity state.
+3. Package: Agentex validates bounds, applies redaction rules, encrypts payload, and computes the
+   decrypted content hash.
+4. Store: Agentex uploads the encrypted experience object to IPFS/Filecoin Pin and verifies storage.
+5. Prove: whitelisted venue decoder creates a signed execution proof from public chain data.
+6. Attest: seller signs and submits the registry attestation within the fixed post-execution window.
+7. Accept: registry verifies identity, deadline, venue, seller signature, execution-proof signature,
+   trade fields, and price closeness.
+8. List: seller creates a listing for the accepted attestation.
+9. Buy: buyer inspects public trade summary, registry proof, storage proof, quality signals, and
+   payment terms.
+10. Settle: buyer pays through the selected settlement path; seller fulfills decryption access.
+11. Verify: buyer decrypts payload, checks decrypted hash against registry, and validates identity,
+   storage, payment, and delivery.
+12. Ingest: buyer imports the verified experience into its local learning store.
 
 ## Verification Rules
 
@@ -355,36 +525,40 @@ Agentex fails closed when proof is missing or inconsistent.
 
 Required checks:
 
-- gene contains only allowed profile files
-- denied secret patterns are absent
-- manifest hash matches stored manifest
-- encrypted payload hash matches manifest
-- decrypted files match advertised hashes
-- score report hash matches manifest
+- venue is whitelisted
+- trade is finalized under the configured finality rule
+- execution proof signer is authorized for the venue
+- execution proof binds the expected chain, venue, and trade TxHash
+- execution proof binds pair, side, size, and actual fill price
+- attested fill price is close to the proved actual fill price
+- attestation is submitted within the fixed deadline
+- seller signature matches the registered agent identity
+- encrypted experience CID matches the stored payload
+- decrypted payload hash matches registry attestation after purchase
 - storage status is verified before listing is live
-- seller ERC-8004 identity resolves
-- escrow condition references exact manifest and hashes
-- buyer-encrypted key envelope unlocks exact payload
-- breeding commit writes only after explicit confirmation
+- escrow condition references the exact attestation, encrypted CID, and decrypted hash
+- decryption access unlocks the exact payload after settlement
 
-On failure, the system leaves local retry state and a structured error. It must not mark the gene
-live, settled, verified, or bred.
+On failure, the system leaves local retry state and a structured error. It must not mark the
+experience live, sold, settled, verified, or ingested.
 
 ## Aomi Tool Surface
 
-The first Aomi app should expose this compact workflow:
+The first Aomi app exposes this compact workflow:
 
-- `inspect_openclaw_profile`
-- `create_gene_asset`
-- `score_gene_asset`
-- `upload_gene_to_filecoin`
-- `register_agent_profile`
-- `create_gene_listing`
-- `inspect_gene_listing`
-- `create_gene_purchase`
-- `verify_gene_delivery`
-- `prepare_gene_breed`
-- `record_gene_breeding`
+- `inspect_openclaw_activity`
+- `extract_trade_experience`
+- `encrypt_trade_experience`
+- `upload_experience_to_filecoin`
+- `create_execution_proof`
+- `prepare_registry_attestation`
+- `submit_registry_attestation`
+- `create_experience_listing`
+- `inspect_experience_listing`
+- `create_experience_purchase`
+- `verify_experience_delivery`
+- `prepare_experience_ingestion`
+- `record_experience_feedback`
 
 Each tool returns stable JSON with identifiers, verification status, and next action.
 
@@ -395,71 +569,87 @@ finishes.
 
 V1 must include:
 
+- encrypted experiences by default
+- per-experience encryption material or access grant
+- public trade summary limited to venue, pair, side, size, fill price, and timestamps
+- decrypted content hash committed before listing
+- no plaintext reasoning upload
 - default-deny redaction rules
 - `.agentexignore`
-- per-gene encryption keys
-- public preview limited to safe summary and hashes
-- no raw secret upload
 - confirmation before public storage
-- confirmation before profile breeding
+- confirmation before registry attestation
+- confirmation before purchase settlement
+- confirmation before ingestion into buyer memory
 
-Anything uploaded unencrypted to IPFS/Filecoin is public.
+Privacy limit: the registry proves commitment, not plaintext correctness. Plaintext correctness is
+verified by the buyer after purchase through the decrypted hash.
 
 ## V1 Hackathon Slice
 
-V1 proves a four-agent exchange and evolution loop.
+V1 proves a four-agent experience exchange loop.
 
 Required demo:
 
 1. A local Kind cluster runs four isolated OpenClaw instances: alpha, beta, gamma, and delta.
-2. Each agent starts with distinct `AGENTS.md`, `MEMORY.md`, and trade evidence.
-3. Agentex packages one encrypted starting gene per agent.
-4. Filecoin Pin stores each manifest, encrypted payload, preview, and score.
-5. Each agent is registered or updated through ERC-8004 metadata.
-6. Each agent lists its gene with an Arkhai/NLA escrow condition.
-7. Aomi coordinates an autonomous exchange round: alpha buys beta, beta buys gamma, gamma buys delta,
+2. Each agent executes one buy/sell trade on a whitelisted onchain venue.
+3. Each trade produces one extracted trade-experience object with pre-trade reasoning and immediate
+   post-trade reflection.
+4. Agentex encrypts and pins each experience to IPFS/Filecoin.
+5. A whitelisted venue decoder signs one execution proof per trade.
+6. Each seller submits a registry attestation within the fixed deadline.
+7. The registry accepts only attestations whose public trade fields and fill price match the signed
+   execution proof within tolerance.
+8. Each agent lists one accepted experience.
+9. Aomi coordinates an autonomous exchange round: alpha buys beta, beta buys gamma, gamma buys delta,
    and delta buys alpha.
-8. Each seller delivers the buyer-encrypted decryption key for the exact manifest CID and file hashes.
-9. Each buyer verifies, decrypts, exports to a review directory, and breeds selected profile sections.
-10. Agentex records purchase and breeding receipts for all four agents.
-11. The demo shows the second-generation genes and their lineage graph.
+10. Each buyer receives decryption access, verifies the decrypted hash, and imports the experience
+    into its local learning store.
+11. Agentex records purchase receipts and buyer feedback for all four agents.
 
 Required live proof:
 
 - four OpenClaw instances in Kind: alpha, beta, gamma, delta
-- four initial encrypted genes
-- four Filecoin Pin uploads
+- four whitelisted onchain trade TxHashes
+- four signed execution proofs
+- four encrypted experience uploads to IPFS/Filecoin
+- four accepted registry attestations
 - four ERC-8004 registrations or updates
 - four Filecoin Pay wallet/payment paths
-- four Arkhai/NLA escrow flows
+- four Arkhai/NLA escrow or settlement flows
 - one Aomi-guided autonomous exchange round
 - four verified purchase receipts
-- four breeding receipts
-- one lineage view showing the second-generation gene state
+- four decrypted-hash verification results
+- one market view showing the public trade summaries and private post-purchase ingestion results
 
 V1 non-goals:
 
-- automated trading
+- offchain broker/CEX order support
+- arbitrary onchain transaction support
+- automated trading strategy execution
 - profitability guarantees
-- broad ranking market beyond the four-agent demo loop
-- private registry support
-- deterministic model-output replay
+- plaintext reasoning previews
 - full tokenomics
 
 ## Acceptance Criteria
 
 A reviewer can verify:
 
-- the gene is exactly the two OpenClaw profile files
-- public metadata verifies content, identity, storage, score, and purchase
-- private profile content stays encrypted until settlement
+- the asset is one buy/sell experience extracted from OpenClaw memory/activity state
+- the trade came from a whitelisted onchain venue
+- a whitelisted venue decoder signed the execution proof
+- the registry attestation arrived within the fixed deadline
+- the attested fill price is close to the proved actual fill price
+- public metadata binds seller identity, trade summary, encrypted CID, decrypted hash, storage, and
+  listing
+- private reasoning stays encrypted until settlement
+- decrypted payload hash matches the registry commitment after purchase
 - seller and buyer are represented as ERC-8004 agents
-- IPFS/Filecoin stores the market artifact
+- IPFS/Filecoin stores the encrypted market artifact
 - Filecoin Pay participates in settlement
 - Arkhai escrow protects delivery
 - Aomi is the agent-facing interface
-- alpha, beta, gamma, and delta each breed at least one external gene into a Git descendant
-- Agentex records a coherent exchange graph from starting genes to second-generation genes
+- alpha, beta, gamma, and delta each buy and verify at least one external experience
+- Agentex records a coherent exchange graph from trades to attestations to purchases to ingestion
 
 ## References
 
