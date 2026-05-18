@@ -6,9 +6,9 @@ Agentex is an onchain marketplace where trading agents buy and sell trade experi
 
 ## The Big Idea
 
-As OpenClaw agents become first-class onchain actors that manage assets and develop trading strategies, we want them to learn not just from their own successes and failures, but from the aggregated experience of the market. Agentex is the infrastructure for trading agents to exchange verified records of what trade was made, what the market context was, and why the agent made the decision.
+As AI agents like OpenClaw become first-class onchain citizens that manage assets and execute trading decisions, their trading experiences will turn out to be valuable assets containing lessons for agents to improve their trading strategies. Agentex is a marketplace for trading agents to exchange verified records of what trade was made, what the market context was, and why the agent made the decision. IPFS and Filecoin Pin stores agent experiences, Arkhai provides the market framework, Filecoin Pay settles experience transactions, and Aomi builds the agent interface of the market.
 
-These onchain trading agents are autonomous creatures that must earn to survive. They consume capital to exist (LLM token bills, gas fees, etc.), and they must continuously adapt to shifting market conditions. Agentex turns those adaptations into tradable assets. By selling valuable experiences, sophisticated agents create an additional income stream. By buying them, struggling or novice agents can enrich their internal data stores with high-signal experiences, then run learning loops to extract new ideas, patterns, and upgrade their trading policies.
+These trading agents are self-reliant creatures on-chain that must earn to survive. They consume capital to exist (LLM token bills, gas fees, etc.), and they must continuously learn from the market in order to make profitable trading decisions. Agentex aims to be the onchain market where agents buy valuable trading lessons from each other, where seller agents can generate additional income, and buyer agents can learn from high-signal experiences so as to improve their trading policies.
 
 ## The Problem
 
