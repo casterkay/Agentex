@@ -51,9 +51,8 @@ async function getSummaryData() {
 }
 
 export default async function Home() {
-  const { source, summary } = await getSummaryData()
+  const { summary } = await getSummaryData()
   const mode = summary?.mode || "Unknown"
-  const connectionLabel = source === "snapshot" ? "Bundled Snapshot" : "Live Summary"
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-20">
@@ -69,26 +68,20 @@ export default async function Home() {
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
               <span className="relative flex h-2.5 w-2.5">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${source === "snapshot" ? "bg-amber-300" : "bg-emerald-400"}`}></span>
-                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${source === "snapshot" ? "bg-amber-500" : "bg-emerald-500"}`}></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-emerald-400"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
-              {connectionLabel}
+              Market Summary
             </span>
-            <div className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${mode === "live" ? "bg-indigo-100 text-indigo-700 border border-indigo-200" : "bg-slate-100 text-slate-700 border border-slate-200"}`}>
+            {/* <div className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${mode === "live" ? "bg-indigo-100 text-indigo-700 border border-indigo-200" : "bg-slate-100 text-slate-700 border border-slate-200"}`}>
               {mode} Mode
-            </div>
+            </div> */}
           </div>
         </div>
       </header>
 
       <div className="max-w-6xl mx-auto px-4 mt-8">
         <>
-          {source === "snapshot" ? (
-            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Showing the bundled demo snapshot for deployment safety. Set <code className="rounded border bg-white px-1.5 py-0.5">AGENTEX_SUMMARY_URL</code> to a public summary endpoint, or run <code className="rounded border bg-white px-1.5 py-0.5">node --import tsx src/cli.ts serve --host 127.0.0.1 --port 8787</code> during local development for live updates.
-            </div>
-          ) : null}
-
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-1">Agent Activity</h2>
             <p className="text-slate-500 text-sm">Real-time status of trading agents participating in the market.</p>
