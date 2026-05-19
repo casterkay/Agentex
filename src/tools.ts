@@ -5,16 +5,20 @@ import {
   prepareExperienceIngestion,
 } from "./experience.js";
 import {
+  collectExperiencePayment,
   createExperienceListing,
   createExperiencePurchase,
   inspectExperienceListing,
   recordExperienceFeedback,
+  requestExperienceArbitration,
+  submitExperienceFulfillment,
   verifyExperienceDelivery,
 } from "./market.js";
 import { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
 import { createExecutionProof } from "./venue.js";
 import { type AgentRef, readJson } from "./shared.js";
 import { type ExecutionProof, type ExperienceManifest, type TradeExperience } from "./schemas.js";
+import { listArkhaiEscrows } from "./arkhai.js";
 
 export type AgentexToolResult = Record<string, unknown>;
 
@@ -123,6 +127,7 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
     case "inspect_experience_listing":
       return { status: "ready", listing: await inspectExperienceListing({ listingPath: stringArg(args, "listingPath") }) };
     case "create_experience_purchase":
+    case "create_arkhai_escrow":
       if (args.confirm !== true) {
         return {
           status: "confirmation_required",
@@ -135,7 +140,21 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         listingPath: stringArg(args, "listingPath"),
         buyerAgent: agentRefArg(args.buyerAgent, "buyerAgent"),
         filecoinPayReference: stringArg(args, "filecoinPayReference"),
-        escrowId: stringArg(args, "escrowId"),
+        escrowId: optionalStringArg(args, "escrowId"),
+        keyEnvelope: stringArg(args, "keyEnvelope"),
+        deliveryProof: stringArg(args, "deliveryProof"),
+      });
+    case "submit_experience_fulfillment":
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          purchase_receipt_path: stringArg(args, "purchaseReceiptPath"),
+          next_action: `call ${name} again with confirm:true`,
+        };
+      }
+      return submitExperienceFulfillment({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
         keyEnvelope: stringArg(args, "keyEnvelope"),
         deliveryProof: stringArg(args, "deliveryProof"),
       });
@@ -144,6 +163,32 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
         key: stringArg(args, "key"),
       });
+    case "request_experience_arbitration":
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          purchase_receipt_path: stringArg(args, "purchaseReceiptPath"),
+          next_action: `call ${name} again with confirm:true`,
+        };
+      }
+      return requestExperienceArbitration({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
+      });
+    case "collect_experience_payment":
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          purchase_receipt_path: stringArg(args, "purchaseReceiptPath"),
+          next_action: `call ${name} again with confirm:true`,
+        };
+      }
+      return collectExperiencePayment({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
+      });
+    case "inspect_arkhai_market":
+      return { status: "ready", ...(await listArkhaiEscrows()) };
     case "prepare_experience_ingestion":
       return prepareExperienceIngestion({
         purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),

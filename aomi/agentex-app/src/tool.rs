@@ -9,7 +9,12 @@ pub const TOOL_NAMES: &[&str] = &[
     "create_experience_listing",
     "inspect_experience_listing",
     "create_experience_purchase",
+    "create_arkhai_escrow",
+    "submit_experience_fulfillment",
     "verify_experience_delivery",
+    "request_experience_arbitration",
+    "collect_experience_payment",
+    "inspect_arkhai_market",
     "prepare_experience_ingestion",
     "record_experience_feedback",
 ];

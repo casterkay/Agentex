@@ -15,8 +15,9 @@ async function main(): Promise<void> {
     throw new Error(`missing required env: ${missing.join(", ")}`);
   }
   await compileContracts();
-  const [demoVenueArtifact, registryArtifact] = await Promise.all([
+  const [demoVenueArtifact, experienceAccessObligationArtifact, registryArtifact] = await Promise.all([
     readArtifact("DemoTradeVenue.json"),
+    readArtifact("ExperienceAccessObligation.json"),
     readArtifact("AgentexRegistry.json"),
   ]);
   const chainId = Number(process.env.AGENTEX_CHAIN_ID);
@@ -27,6 +28,10 @@ async function main(): Promise<void> {
     transport: http(process.env.AGENTEX_RPC_URL),
   });
   const venueHash = await client.deployContract({ abi: demoVenueArtifact.abi, bytecode: demoVenueArtifact.bytecode });
+  const experienceAccessObligationHash = await client.deployContract({
+    abi: experienceAccessObligationArtifact.abi,
+    bytecode: experienceAccessObligationArtifact.bytecode,
+  });
   const registryHash = await client.deployContract({ abi: registryArtifact.abi, bytecode: registryArtifact.bytecode });
   const deployment = {
     schema: "agentex.demo_deployment.v1",
@@ -34,6 +39,7 @@ async function main(): Promise<void> {
     deployer: account.address,
     decoder_address: process.env.AGENTEX_DECODER_ADDRESS,
     demo_venue_deploy_tx: venueHash,
+    experience_access_obligation_deploy_tx: experienceAccessObligationHash,
     registry_deploy_tx: registryHash,
     venue_id: "demo-venue-v1",
     venue_id_hash: keccak256(stringToBytes("demo-venue-v1")),

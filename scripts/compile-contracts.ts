@@ -10,6 +10,7 @@ interface ContractArtifact {
 
 export async function compileContracts(input: { outDir?: string } = {}): Promise<{
   demoVenue: ContractArtifact;
+  experienceAccessObligation: ContractArtifact;
   registry: ContractArtifact;
 }> {
   const sources = {
@@ -18,6 +19,9 @@ export async function compileContracts(input: { outDir?: string } = {}): Promise
     },
     "AgentexRegistry.sol": {
       content: await readFile(path.join("contracts", "AgentexRegistry.sol"), "utf8"),
+    },
+    "ExperienceAccessObligation.sol": {
+      content: await readFile(path.join("contracts", "ExperienceAccessObligation.sol"), "utf8"),
     },
   };
   const compiled = JSON.parse(
@@ -44,12 +48,14 @@ export async function compileContracts(input: { outDir?: string } = {}): Promise
     throw new Error(errors.map((error) => error.formattedMessage).join("\n"));
   }
   const demoVenue = artifact(compiled.contracts["DemoTradeVenue.sol"]?.DemoTradeVenue);
+  const experienceAccessObligation = artifact(compiled.contracts["ExperienceAccessObligation.sol"]?.ExperienceAccessObligation);
   const registry = artifact(compiled.contracts["AgentexRegistry.sol"]?.AgentexRegistry);
   const outDir = input.outDir ?? "artifacts";
   await mkdir(outDir, { recursive: true });
   await writeFile(path.join(outDir, "DemoTradeVenue.json"), JSON.stringify(demoVenue, null, 2));
+  await writeFile(path.join(outDir, "ExperienceAccessObligation.json"), JSON.stringify(experienceAccessObligation, null, 2));
   await writeFile(path.join(outDir, "AgentexRegistry.json"), JSON.stringify(registry, null, 2));
-  return { demoVenue, registry };
+  return { demoVenue, experienceAccessObligation, registry };
 }
 
 function artifact(contract: { abi: ContractArtifact["abi"]; evm: { bytecode: { object: string }; deployedBytecode: { object: string } } } | undefined): ContractArtifact {

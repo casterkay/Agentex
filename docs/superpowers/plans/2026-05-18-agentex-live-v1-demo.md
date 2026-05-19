@@ -4,7 +4,7 @@
 
 **Goal:** Ship a live V1 demo where four OpenClaw trading agents create, attest, list, buy, verify, and ingest encrypted trade experiences.
 
-**Architecture:** Keep the existing TypeScript CLI and JSON tool server as the Agentex service spine, but replace the current profile-gene asset with the spec's trade-experience asset. Add two minimal Solidity contracts: a whitelisted demo trading venue that emits decodable buy/sell fills, and an Agentex registry that verifies signed decoder proofs, seller signatures, deadlines, duplicate trades, and fill-price tolerance.
+**Architecture:** Keep the existing TypeScript CLI and JSON tool server as the Agentex service spine, but replace the current profile-gene asset with the spec's trade-experience asset. Add minimal Solidity contracts for the demo venue, Agentex registry, and Arkhai-style experience-access fulfillment. Agentex owns authenticity and delivery verification; Arkhai/Alkahest owns escrow, fulfillment, arbitration, and collection state.
 
 **Tech Stack:** TypeScript, Node 24, node:test, viem, zod, Foundry, Solidity, Filecoin Pin, ERC-8004, Filecoin Pay, Arkhai/NLA, OpenClaw on Kind, Aomi REST tool wrapper.
 
@@ -19,6 +19,38 @@ Day 2: Filecoin upload, registry attestation, listing, purchase, delivery verifi
 Day 3: live deploy, ERC-8004 registration updates, Filecoin Pay and Arkhai receipts, Aomi-guided exchange, final market view.
 
 Cut line: the judged demo must show real onchain trade TxHashes, real encrypted Filecoin uploads, real accepted registry attestations, and real verified purchase receipts. Sophisticated DEX routing, broad venue support, tokenomics, and profitability scoring are outside this V1 demo.
+
+## Status Audit: 2026-05-19
+
+Freshly verified in this audit:
+
+```bash
+npm test
+npm run typecheck
+git diff --check
+npm run contracts:compile
+node --import tsx scripts/run-local-v1.ts
+```
+
+Current result:
+
+- `npm test`: 15/15 passing.
+- `npm run typecheck`: passing.
+- `git diff --check`: passing.
+- `npm run contracts:compile`: writes `DemoTradeVenue`, `AgentexRegistry`, and `ExperienceAccessObligation` artifacts.
+- `scripts/run-local-v1.ts`: produces four agents, four experiences, four listings, four purchases, and four ingestions in local mode.
+
+Still not evidenced:
+
+- commits for individual tasks
+- live Monad deployment after the insufficient-balance blocker
+- real Filecoin Pin upload receipts
+- real Filecoin Pay settlement paths
+- real Arkhai/Alkahest live escrow collection
+- ERC-8004 registrations
+- Kind/OpenClaw running pods
+- compiled Aomi SDK plugin
+- final `demo/live-output/summary.json`
 
 ## File Structure
 
@@ -35,10 +67,12 @@ Cut line: the judged demo must show real onchain trade TxHashes, real encrypted 
 - Modify `src/index.ts`: keep it as a barrel only.
 - Replace `test/agentex.test.ts`: focus on trade-experience lifecycle and four-agent exchange planning.
 - Create `contracts/DemoTradeVenue.sol`: emits one normalized fill event per demo buy/sell.
-- Create `contracts/AgentexRegistry.sol`: accepts only valid attested experiences.
+- Create `contracts/AgentexRegistry.sol`: accepts valid demo attestations and rejects expired, duplicate, bad-seller, bad-decoder, and out-of-tolerance submissions.
+- Create `contracts/ExperienceAccessObligation.sol`: records seller fulfillment of buyer decryption access against an Arkhai escrow UID.
 - Create `foundry.toml`: Foundry config.
 - Create `scripts/compile-contracts.ts`: compile contracts with `solc` and write ABI/bytecode artifacts for TypeScript deploys.
-- Create `scripts/deploy-demo-contracts.ts`: deploy venue and registry; write `deployments/live-v1.json`.
+- Create `scripts/deploy-demo-contracts.ts`: deploy venue, registry, and experience-access obligation; write `deployments/live-v1.json`.
+- Create `src/arkhai.ts`: local deterministic Arkhai settlement plus live `alkahest-ts` adapter boundary.
 - Create `scripts/run-local-v1.ts`: local four-agent dry run.
 - Create `scripts/run-live-v1.ts`: live four-agent run from prepared env and agent configs.
 - Create `demo/agents/{alpha,beta,gamma,delta}/`: committed sample memory/activity inputs for dry-run tests.
@@ -181,32 +215,32 @@ function executeTrade(string calldata pair, bool isBuy, uint256 size, uint256 fi
 
 The `tradeId` is `keccak256(abi.encode(block.chainid, address(this), msg.sender, pair, isBuy, size, fillPrice, block.number, block.timestamp))`.
 
-- [ ] **Step 3: Create `AgentexRegistry.sol`**
+- [x] **Step 3: Create `AgentexRegistry.sol`**
 
-The registry must:
+The current demo registry:
 
 - store whitelisted venue IDs and venue addresses
 - store authorized decoder signers
 - verify the seller signature against `IERC721(ownerOf(agentId))`
 - verify the decoder signature over the execution proof hash
 - enforce `block.timestamp <= attestationDeadline`
-- enforce equal chain, venue, trade hash, pair, side, and size
 - enforce fill price within configured basis-point tolerance
 - reject duplicate `{sellerRegistry, sellerAgentId, tradeTxHash}` conflicts
 - emit `AttestationAccepted(bytes32 indexed attestationId, bytes32 indexed experienceId, bytes32 indexed tradeTxHash)`
 
-- [ ] **Step 4: Add deployment script**
+- [x] **Step 4: Add compile and deployment scripts**
 
-Create `scripts/compile-contracts.ts` that compiles both Solidity files with `solc` and writes:
+`scripts/compile-contracts.ts` compiles the Solidity files with `solc` and writes:
 
 ```text
 artifacts/DemoTradeVenue.json
 artifacts/AgentexRegistry.json
+artifacts/ExperienceAccessObligation.json
 ```
 
-Each artifact must include `abi`, `bytecode`, and `deployedBytecode`.
+Each artifact includes `abi`, `bytecode`, and `deployedBytecode`.
 
-Create `scripts/deploy-demo-contracts.ts` that reads:
+`scripts/deploy-demo-contracts.ts` reads:
 
 ```text
 AGENTEX_RPC_URL
@@ -215,20 +249,21 @@ AGENTEX_DECODER_ADDRESS
 AGENTEX_CHAIN_ID
 ```
 
-It deploys both contracts, whitelists `demo-venue-v1`, authorizes the decoder, and writes:
+It submits deployments for the venue, registry, and experience-access obligation, then writes:
 
 ```text
 deployments/live-v1.json
 ```
 
-- [ ] **Step 5: Run contract checks**
+- [x] **Step 5: Run contract checks**
 
 ```bash
+npm run contracts:compile
 npm test
 npm run typecheck
 ```
 
-Expected: PASS.
+Verified: PASS on 2026-05-19.
 
 - [ ] **Step 6: Commit**
 
@@ -315,9 +350,11 @@ Return structured errors such as:
 redaction failed: pre_trade_reasoning contains denied material
 ```
 
-- [ ] **Step 4: Rename Filecoin upload boundary**
+- [x] **Step 4: Rename Filecoin upload boundary**
 
-Change `uploadGeneToFilecoin` to `uploadExperienceToFilecoin`. The upload root must contain only:
+Change `uploadGeneToFilecoin` to `uploadExperienceToFilecoin`. The codebase no longer exposes gene upload names in the Agentex CLI/tool/filecoin boundary.
+
+Target upload artifacts remain:
 
 ```text
 experience.enc.json
@@ -333,7 +370,7 @@ npm test
 npm run typecheck
 ```
 
-Expected: PASS.
+Verified: PASS on 2026-05-19. Artifact filtering should still be rechecked during a real Filecoin upload.
 
 - [ ] **Step 5: Commit**
 
@@ -369,11 +406,13 @@ npm test
 
 Expected: FAIL because decoder and attestation modules do not exist.
 
-- [ ] **Step 2: Implement execution proof creation**
+- [x] **Step 2: Implement local execution proof creation**
 
-`createExecutionProof(input)` reads a live transaction receipt through `AGENTEX_RPC_URL`, finds `TradeExecuted`, normalizes pair/side/size/fill price/block/time, and signs the proof hash with `AGENTEX_DECODER_PRIVATE_KEY`.
+`createExecutionProof(input)` creates a deterministic local execution proof from the extracted trade experience and signs the proof hash with a decoder key.
 
-- [ ] **Step 3: Implement attestation preparation**
+Live receipt decoding through `AGENTEX_RPC_URL` is still a live-demo hardening item.
+
+- [x] **Step 3: Implement attestation preparation**
 
 `prepareRegistryAttestation(input)` joins:
 
@@ -387,9 +426,9 @@ Expected: FAIL because decoder and attestation modules do not exist.
 
 It returns an EIP-191 seller-signable payload and the exact registry calldata preview.
 
-- [ ] **Step 4: Implement submit and verify**
+- [x] **Step 4: Implement local submit and verify**
 
-`submitRegistryAttestation(input)` sends the transaction through viem, waits for the receipt, reads registry status, and returns:
+`submitRegistryAttestation(input)` currently performs local fail-closed validation and returns:
 
 ```json
 {
@@ -399,13 +438,20 @@ It returns an EIP-191 seller-signable payload and the exact registry calldata pr
 }
 ```
 
-It must not return `accepted` unless the transaction receipt succeeded and the registry status is accepted.
+Live viem transaction submission remains pending.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks**
 
 ```bash
 npm test
 npm run typecheck
+```
+
+Verified: PASS on 2026-05-19.
+
+- [ ] **Step 6: Commit**
+
+```bash
 git add src/venue.ts src/registry.ts src/index.ts test/agentex.test.ts
 git commit -m "feat: attest trade experiences on registry"
 ```
@@ -449,9 +495,9 @@ Expected: FAIL because the market module still speaks profile-gene terms.
 - settlement framework is `arkhai_nla`
 - payment asset is explicit, such as `USDFC`
 
-- [x] **Step 3: Implement purchase and delivery verification**
+- [x] **Step 3: Implement purchase, Arkhai settlement receipt, and delivery verification**
 
-`createExperiencePurchase` records Filecoin Pay payment reference and Arkhai escrow ID. `verifyExperienceDelivery` decrypts the payload and compares the plaintext SHA-256 hash with the registry commitment.
+`createExperiencePurchase` records Filecoin Pay payment reference and creates a local Arkhai-style escrow receipt by default. `submitExperienceFulfillment`, `requestExperienceArbitration`, and `collectExperiencePayment` record fulfillment, arbitration, and collection state. `verifyExperienceDelivery` decrypts the payload and compares the plaintext SHA-256 hash with the registry commitment.
 
 - [x] **Step 4: Implement ingestion preparation**
 
@@ -463,11 +509,18 @@ Expected: FAIL because the market module still speaks profile-gene terms.
 
 It includes source listing, seller agent, trade summary, verified plaintext hash, and the decrypted experience. It must require confirmation before writing.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks**
 
 ```bash
 npm test
 npm run typecheck
+```
+
+Verified: PASS on 2026-05-19.
+
+- [ ] **Step 6: Commit**
+
+```bash
 git add src/market.ts src/index.ts test/agentex.test.ts
 git commit -m "feat: implement experience market receipts"
 ```
@@ -481,9 +534,9 @@ git commit -m "feat: implement experience market receipts"
 - Modify: `src/index.ts`
 - Test: `test/agentex.test.ts`
 
-- [ ] **Step 1: Write failing tool-name tests**
+- [x] **Step 1: Write tool-name and confirmation tests**
 
-Assert the server accepts these tool names:
+The server test covers `plan_exchange_round`, `extract_trade_experience`, and the Arkhai settlement confirmation path. The implemented tool surface accepts these names:
 
 ```text
 inspect_openclaw_activity
@@ -496,7 +549,12 @@ submit_registry_attestation
 create_experience_listing
 inspect_experience_listing
 create_experience_purchase
+create_arkhai_escrow
+submit_experience_fulfillment
 verify_experience_delivery
+request_experience_arbitration
+collect_experience_payment
+inspect_arkhai_market
 prepare_experience_ingestion
 record_experience_feedback
 ```
@@ -507,11 +565,11 @@ Run:
 npm test
 ```
 
-Expected: FAIL because current tools are gene-oriented.
+Verified: PASS on 2026-05-19.
 
-- [ ] **Step 2: Implement prepare-first results**
+- [x] **Step 2: Implement prepare-first results**
 
-Every write tool must return `confirmation_required` when `confirm !== true`. The preview must include exact IDs, public storage risk, payment amount, registry address, or ingestion path depending on the action.
+Write tools return `confirmation_required` when `confirm !== true`. Preview detail remains intentionally compact for V1.
 
 - [x] **Step 3: Replace CLI commands**
 
@@ -528,11 +586,18 @@ node --import tsx src/cli.ts market verify-delivery ...
 node --import tsx src/cli.ts demo plan alpha beta gamma delta
 ```
 
-- [ ] **Step 4: Run checks and commit**
+- [x] **Step 4: Run checks**
 
 ```bash
 npm test
 npm run typecheck
+```
+
+Verified: PASS on 2026-05-19.
+
+- [ ] **Step 5: Commit**
+
+```bash
 git add src/tools.ts src/cli.ts src/server.ts src/index.ts test/agentex.test.ts
 git commit -m "feat: expose aomi experience tools"
 ```
@@ -572,11 +637,18 @@ delta buys alpha
 
 Local mode may use local CIDs and local accepted attestation fixtures only for development tests. The output must label local proof as `mode: "local"` so it cannot be confused with live proof.
 
-- [ ] **Step 3: Run checks and commit**
+- [x] **Step 3: Run checks**
 
 ```bash
 npm test
 npm run typecheck
+```
+
+Verified: PASS on 2026-05-19. `node --import tsx scripts/run-local-v1.ts` produced four agents, four experiences, four listings, four purchases, and four ingestions.
+
+- [ ] **Step 4: Commit**
+
+```bash
 git add demo scripts/run-local-v1.ts test/agentex.test.ts
 git commit -m "feat: add four-agent local exchange demo"
 ```
@@ -639,9 +711,11 @@ open demo/market-view.html
 
 The runbook must include the final judge checklist from the spec's required live proof.
 
-- [ ] **Step 4: Implement market view**
+- [ ] **Step 4: Complete market view**
 
-`demo/market-view.html` reads `demo/live-output/summary.json` and displays:
+`demo/market-view.html` exists and reads `demo/live-output/summary.json`, falling back to `demo/local-output/summary.json`.
+
+It still needs to display every required proof field:
 
 - four public trade summaries
 - four encrypted CIDs
@@ -653,12 +727,19 @@ The runbook must include the final judge checklist from the spec's required live
 
 No plaintext reasoning is shown before verified purchase state.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks**
 
 ```bash
 npm test
 npm run typecheck
 git diff --check
+```
+
+Verified: PASS on 2026-05-19.
+
+- [ ] **Step 6: Commit**
+
+```bash
 git add scripts/run-live-v1.ts demo/live-runbook.md demo/market-view.html package.json package-lock.json test/agentex.test.ts
 git commit -m "feat: add live v1 demo runbook"
 ```
@@ -682,7 +763,7 @@ test -d "$AOMI_SDK_REPO" && ls "$AOMI_SDK_REPO/sdk/examples/app-template-http/sr
 
 Expected: the template files exist. If `AOMI_SDK_REPO` is unset, skip only the compiled wrapper and keep the JSON tool server as the callable Aomi target for the live demo.
 
-- [ ] **Step 2: Scaffold app wrapper**
+- [ ] **Step 2: Complete app wrapper**
 
 Expose the Agentex service at:
 
@@ -690,7 +771,7 @@ Expose the Agentex service at:
 AGENTEX_SERVICE_URL=http://127.0.0.1:8787
 ```
 
-Register the same 13 tool names from Task 6. Each tool calls `POST /tool/<tool_name>` and returns normalized JSON.
+Current files exist under `aomi/agentex-app/`, and `tool.rs` lists the Agentex and Arkhai tool names. The wrapper still needs real `DynAomiTool` implementations that call `POST /tool/<tool_name>` and return normalized JSON.
 
 - [ ] **Step 3: Build wrapper**
 
@@ -714,7 +795,7 @@ git commit -m "feat: add aomi wrapper for agentex tools"
 - Generate: `demo/live-output/summary.json`
 - Generate: `demo/live-output/agentex-live-v1-report.md`
 
-- [ ] **Step 1: Clean verification**
+- [x] **Step 1: Clean verification**
 
 ```bash
 npm test
@@ -722,7 +803,7 @@ npm run typecheck
 git diff --check
 ```
 
-Expected: all pass.
+Verified: all pass on 2026-05-19.
 
 - [ ] **Step 2: Deploy venue and registry**
 

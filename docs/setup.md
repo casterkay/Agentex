@@ -294,20 +294,20 @@ or Arkhai/NLA escrow execution.
 Use a narrow natural-language agreement:
 
 ```text
-Release payment if the seller delivers a buyer-encrypted decryption key that unlocks the exact gene payload identified by this manifest CID and these file hashes.
+Release payment if the seller delivers decryption access that unlocks the exact encrypted experience CID and produces plaintext whose SHA-256 hash matches the Agentex registry attestation.
 ```
 
 For each exchange:
 
-1. Buyer creates escrow with the exact manifest reference, payload reference, price, asset, and
-   buyer delivery public key.
-2. Seller fulfills with the buyer-encrypted decryption key and delivery proof.
-3. Oracle/arbitration settles payment.
-4. Agentex records the escrow ID, key envelope hash, delivery proof hash, and verification status
-   in the purchase receipt.
+1. Buyer creates escrow with the exact attestation, encrypted CID, decrypted hash, price, and asset.
+2. Seller fulfills with decryption access and delivery proof.
+3. Buyer verifies the decrypted hash through Agentex.
+4. Oracle/arbitration settles payment.
+5. Agentex records escrow, fulfillment, arbitration, collection, and verification state in the
+   purchase receipt.
 
-The local CLI currently records the receipt after the external escrow step. It does not yet create
-or settle the Arkhai escrow itself.
+Local mode creates deterministic Arkhai-style escrow receipts. Live mode uses `alkahest-ts` and
+requires explicit Arkhai/Alkahest contract addresses in `.env`.
 
 ## 10. Filecoin Pay
 
@@ -338,16 +338,18 @@ POST http://127.0.0.1:8787/tool/<tool_name>
 
 Core tools:
 
-- `inspect_openclaw_profile`
-- `create_gene_asset`
-- `score_gene_asset`
-- `upload_gene_to_filecoin`
-- `create_gene_listing`
-- `inspect_gene_listing`
-- `create_gene_purchase`
-- `verify_gene_delivery`
-- `prepare_gene_breed`
-- `record_gene_breeding`
+- `inspect_openclaw_activity`
+- `extract_trade_experience`
+- `upload_experience_to_filecoin`
+- `create_experience_listing`
+- `inspect_experience_listing`
+- `create_arkhai_escrow`
+- `submit_experience_fulfillment`
+- `verify_experience_delivery`
+- `request_experience_arbitration`
+- `collect_experience_payment`
+- `prepare_experience_ingestion`
+- `record_experience_feedback`
 - `plan_exchange_round`
 
 Write tools require `confirm: true`. The Aomi app should first preview the action, then ask for

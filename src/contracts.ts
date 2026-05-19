@@ -7,6 +7,7 @@ export interface DemoDeployment {
   deployer: string;
   decoder_address: string;
   demo_venue_deploy_tx: string;
+  experience_access_obligation_deploy_tx: string;
   registry_deploy_tx: string;
   venue_id: string;
   venue_id_hash: string;

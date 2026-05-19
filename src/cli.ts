@@ -8,9 +8,13 @@ import {
   createExperiencePurchase,
   createAgentexServer,
   createTradeExperienceAsset,
+  collectExperiencePayment,
+  listArkhaiEscrows,
   planExchangeRound,
   prepareRegistryAttestation,
+  requestExperienceArbitration,
   readJson,
+  submitExperienceFulfillment,
   submitRegistryAttestation,
   uploadExperienceToFilecoin,
   verifyExperienceDelivery,
@@ -131,7 +135,7 @@ market
   .requiredOption("--buyer-registry <ref>")
   .requiredOption("--buyer-id <id>")
   .requiredOption("--filecoin-pay-reference <ref>")
-  .requiredOption("--escrow-id <id>")
+  .option("--escrow-id <id>", "existing escrow UID for manual/live settlement")
   .requiredOption("--key-envelope <text>")
   .requiredOption("--delivery-proof <text>")
   .option("--confirm")
@@ -149,12 +153,53 @@ market
   });
 
 market
+  .command("fulfill")
+  .requiredOption("--purchase <path>")
+  .requiredOption("--key-envelope <text>")
+  .requiredOption("--delivery-proof <text>")
+  .option("--confirm")
+  .action(async (options) => {
+    requireConfirm(options.confirm);
+    print(
+      await submitExperienceFulfillment({
+        purchaseReceiptPath: options.purchase,
+        keyEnvelope: options.keyEnvelope,
+        deliveryProof: options.deliveryProof,
+      }),
+    );
+  });
+
+market
   .command("verify-delivery")
   .requiredOption("--purchase <path>")
   .option("--key <key>", "experience encryption key", process.env.AGENTEX_EXPERIENCE_KEY)
   .action(async (options) => {
     requireKey(options.key);
     print(await verifyExperienceDelivery({ purchaseReceiptPath: options.purchase, key: options.key }));
+  });
+
+market
+  .command("arbitrate")
+  .requiredOption("--purchase <path>")
+  .option("--confirm")
+  .action(async (options) => {
+    requireConfirm(options.confirm);
+    print(await requestExperienceArbitration({ purchaseReceiptPath: options.purchase }));
+  });
+
+market
+  .command("collect")
+  .requiredOption("--purchase <path>")
+  .option("--confirm")
+  .action(async (options) => {
+    requireConfirm(options.confirm);
+    print(await collectExperiencePayment({ purchaseReceiptPath: options.purchase }));
+  });
+
+market
+  .command("escrows")
+  .action(async () => {
+    print({ status: "ready", ...(await listArkhaiEscrows()) });
   });
 
 program

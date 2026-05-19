@@ -19,6 +19,7 @@
     "node": ">=24"
   },
   "dependencies": {
+    "alkahest-ts": "^0.7.5",
     "commander": "^12.1.0",
     "filecoin-pin": "^0.21.0",
     "pino": "^10.3.1",

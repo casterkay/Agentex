@@ -10,6 +10,7 @@ import {
 } from "./schemas.js";
 import { readJson, sha256, stableJson } from "./shared.js";
 import { verifyExperiencePayload } from "./experience.js";
+import { createArkhaiSettlementClient, type ArkhaiSettlementClient } from "./arkhai.js";
 
 export async function createExperienceListing(input: {
   manifestPath: string;
@@ -52,11 +53,25 @@ export async function createExperiencePurchase(input: {
   listingPath: string;
   buyerAgent: PurchaseReceipt["buyer_agent"];
   filecoinPayReference: string;
-  escrowId: string;
+  escrowId?: string;
   keyEnvelope: string;
   deliveryProof: string;
+  arkhaiClient?: ArkhaiSettlementClient;
 }): Promise<{ receipt: PurchaseReceipt; path: string }> {
   const listing = await inspectExperienceListing({ listingPath: input.listingPath });
+  const arkhaiClient = input.arkhaiClient ?? createArkhaiSettlementClient();
+  const escrow = input.escrowId
+    ? {
+        escrowUid: input.escrowId,
+        escrowTransactionHash: undefined,
+        arbitrationStatus: "not_requested" as const,
+        collectionStatus: "not_collectible" as const,
+      }
+    : await arkhaiClient.createEscrow({
+        listing,
+        buyerAgent: input.buyerAgent,
+        filecoinPayReference: input.filecoinPayReference,
+      });
   const receipt = purchaseReceiptSchema.parse({
     schema: "agentex.purchase_receipt.v1",
     purchase_id: sha256(stableJson({ listing: listing.listing_id, buyer: input.buyerAgent })).slice(0, 32),
@@ -69,7 +84,12 @@ export async function createExperiencePurchase(input: {
     payment_asset: listing.payment_asset,
     payment_amount: listing.price_amount,
     payment_status: "escrowed",
-    escrow_id: input.escrowId,
+    settlement_provider: "arkhai",
+    escrow_id: escrow.escrowUid,
+    escrow_uid: escrow.escrowUid,
+    ...(escrow.escrowTransactionHash ? { escrow_transaction_hash: escrow.escrowTransactionHash } : {}),
+    arbitration_status: escrow.arbitrationStatus,
+    collection_status: escrow.collectionStatus,
     filecoin_pay_reference: input.filecoinPayReference,
     key_envelope_hash: sha256(input.keyEnvelope),
     delivery_proof_hash: sha256(input.deliveryProof),
@@ -81,6 +101,84 @@ export async function createExperiencePurchase(input: {
   const receiptPath = path.join(path.dirname(input.listingPath), `purchase-${input.buyerAgent.agentId}.json`);
   await writeFile(receiptPath, stableJson(receipt));
   return { receipt, path: receiptPath };
+}
+
+export async function submitExperienceFulfillment(input: {
+  purchaseReceiptPath: string;
+  keyEnvelope: string;
+  deliveryProof: string;
+  arkhaiClient?: ArkhaiSettlementClient;
+}): Promise<{ receipt: PurchaseReceipt; path: string }> {
+  const receipt = purchaseReceiptSchema.parse(await readJson<PurchaseReceipt>(input.purchaseReceiptPath));
+  const keyEnvelopeHash = sha256(input.keyEnvelope);
+  const deliveryProofHash = sha256(input.deliveryProof);
+  if (receipt.key_envelope_hash !== keyEnvelopeHash) {
+    throw new Error("key envelope does not match purchase receipt");
+  }
+  if (receipt.delivery_proof_hash !== deliveryProofHash) {
+    throw new Error("delivery proof does not match purchase receipt");
+  }
+  const fulfillment = await (input.arkhaiClient ?? createArkhaiSettlementClient()).submitFulfillment({
+    receipt,
+    keyEnvelopeHash,
+    deliveryProofHash,
+  });
+  const next = purchaseReceiptSchema.parse({
+    ...receipt,
+    fulfillment_uid: fulfillment.fulfillmentUid,
+    fulfillment_transaction_hash: fulfillment.fulfillmentTransactionHash,
+    arbitration_status: fulfillment.arbitrationStatus,
+    collection_status: fulfillment.collectionStatus,
+  });
+  await writeFile(input.purchaseReceiptPath, stableJson(next));
+  return { receipt: next, path: input.purchaseReceiptPath };
+}
+
+export async function requestExperienceArbitration(input: {
+  purchaseReceiptPath: string;
+  arkhaiClient?: ArkhaiSettlementClient;
+}): Promise<{ receipt: PurchaseReceipt; path: string }> {
+  const receipt = purchaseReceiptSchema.parse(await readJson<PurchaseReceipt>(input.purchaseReceiptPath));
+  if (!receipt.fulfillment_uid) {
+    throw new Error("purchase has no fulfillment UID");
+  }
+  const approved = receipt.decryption_verification_result.status === "verified";
+  const arbitration = await (input.arkhaiClient ?? createArkhaiSettlementClient()).requestArbitration({
+    receipt,
+    approved,
+  });
+  const paymentStatus =
+    arbitration.arbitrationStatus === "approved" ? "settled" : arbitration.arbitrationStatus === "rejected" ? "failed" : receipt.payment_status;
+  const next = purchaseReceiptSchema.parse({
+    ...receipt,
+    payment_status: paymentStatus,
+    arbitration_status: arbitration.arbitrationStatus,
+    arbitration_transaction_hash: arbitration.arbitrationTransactionHash,
+    collection_status: arbitration.collectionStatus,
+  });
+  await writeFile(input.purchaseReceiptPath, stableJson(next));
+  return { receipt: next, path: input.purchaseReceiptPath };
+}
+
+export async function collectExperiencePayment(input: {
+  purchaseReceiptPath: string;
+  arkhaiClient?: ArkhaiSettlementClient;
+}): Promise<{ receipt: PurchaseReceipt; path: string }> {
+  const receipt = purchaseReceiptSchema.parse(await readJson<PurchaseReceipt>(input.purchaseReceiptPath));
+  if (!receipt.fulfillment_uid) {
+    throw new Error("purchase has no fulfillment UID");
+  }
+  const collection = await (input.arkhaiClient ?? createArkhaiSettlementClient()).collect({
+    escrowUid: receipt.escrow_uid,
+    fulfillmentUid: receipt.fulfillment_uid,
+  });
+  const next = purchaseReceiptSchema.parse({
+    ...receipt,
+    collection_status: collection.collectionStatus,
+    collection_transaction_hash: collection.collectionTransactionHash,
+  });
+  await writeFile(input.purchaseReceiptPath, stableJson(next));
+  return { receipt: next, path: input.purchaseReceiptPath };
 }
 
 export async function verifyExperienceDelivery(input: {

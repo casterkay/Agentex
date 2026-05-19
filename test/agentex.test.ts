@@ -11,14 +11,18 @@ import {
   createExecutionProof,
   createExperienceListing,
   createExperiencePurchase,
+  createLocalArkhaiSettlementClient,
   createTradeExperienceAsset,
   inspectExperienceListing,
+  listArkhaiEscrows,
   planExchangeRound,
   prepareExperienceIngestion,
   prepareRegistryAttestation,
   recordExperienceFeedback,
+  requestExperienceArbitration,
   sha256,
   stableJson,
+  submitExperienceFulfillment,
   submitRegistryAttestation,
   tradeExperienceSchema,
   verifyExperienceDelivery,
@@ -246,10 +250,13 @@ test("Solidity contracts compile with the required demo venue and registry ABI",
   t.after(() => rm(outDir, { recursive: true, force: true }));
   const artifacts = await compileContracts({ outDir });
   const demoNames = artifacts.demoVenue.abi.map((item: { name?: string }) => item.name).filter(Boolean);
+  const obligationNames = artifacts.experienceAccessObligation.abi.map((item: { name?: string }) => item.name).filter(Boolean);
   const registryNames = artifacts.registry.abi.map((item: { name?: string }) => item.name).filter(Boolean);
 
   assert.ok(demoNames.includes("executeTrade"));
   assert.ok(demoNames.includes("TradeExecuted"));
+  assert.ok(obligationNames.includes("fulfill"));
+  assert.ok(obligationNames.includes("ExperienceAccessFulfilled"));
   assert.ok(registryNames.includes("submitAttestation"));
   assert.ok(registryNames.includes("AttestationAccepted"));
 });
@@ -328,7 +335,6 @@ test("market listing, purchase, delivery verification, ingestion, and feedback f
     listingPath: listing.path,
     buyerAgent: buyer,
     filecoinPayReference: "filecoin-pay:alpha-beta",
-    escrowId: "arkhai:escrow:alpha-beta",
     keyEnvelope: key,
     deliveryProof: "seller delivered key for exact CID and hash",
   });
@@ -352,6 +358,11 @@ test("market listing, purchase, delivery verification, ingestion, and feedback f
   assert.equal(listing.listing.status, "live");
   assert.equal(listing.listing.attestation_id, accepted.attestation_id);
   assert.equal(purchase.receipt.schema, "agentex.purchase_receipt.v1");
+  assert.equal(purchase.receipt.settlement_provider, "arkhai");
+  assert.equal(purchase.receipt.escrow_uid, purchase.receipt.escrow_id);
+  assert.equal(purchase.receipt.fulfillment_uid, undefined);
+  assert.equal(purchase.receipt.arbitration_status, "not_requested");
+  assert.equal(purchase.receipt.collection_status, "not_collectible");
   assert.equal(verified.receipt.decryption_verification_result.status, "verified");
   assert.equal(verified.receipt.decrypted_experience_hash, listing.listing.decrypted_experience_hash);
   assert.match(ingestion.path, /agentex\/.+\.json$/);
@@ -359,6 +370,49 @@ test("market listing, purchase, delivery verification, ingestion, and feedback f
 
   const inspected = await inspectExperienceListing({ listingPath: listing.path });
   assert.equal(inspected.listing_id, listing.listing.listing_id);
+});
+
+test("local Arkhai settlement lifecycle records escrow, fulfillment, arbitration, and collection", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const asset = await createTradeExperienceAsset({
+    activityPath: fixture.activityPath,
+    memoryPath: fixture.memoryPath,
+    sellerAgent: seller,
+    key,
+  });
+  const listing = await createExperienceListing({
+    manifestPath: asset.paths.manifest,
+    attestationId: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    priceAmount: "5",
+    paymentAsset: "USDFC",
+  });
+  const purchase = await createExperiencePurchase({
+    listingPath: listing.path,
+    buyerAgent: buyer,
+    filecoinPayReference: "filecoin-pay:alpha-beta",
+    keyEnvelope: key,
+    deliveryProof: "seller delivered key for exact CID and hash",
+  });
+
+  const fulfilled = await submitExperienceFulfillment({
+    purchaseReceiptPath: purchase.path,
+    keyEnvelope: key,
+    deliveryProof: "seller delivered key for exact CID and hash",
+  });
+  const verified = await verifyExperienceDelivery({ purchaseReceiptPath: fulfilled.path, key });
+  const arbitrated = await requestExperienceArbitration({ purchaseReceiptPath: verified.path });
+  const collected = await createLocalArkhaiSettlementClient().collect({
+    escrowUid: arbitrated.receipt.escrow_uid,
+    fulfillmentUid: arbitrated.receipt.fulfillment_uid ?? "",
+  });
+  const market = await listArkhaiEscrows();
+
+  assert.equal(fulfilled.receipt.fulfillment_uid?.startsWith("arkhai:fulfillment:"), true);
+  assert.equal(arbitrated.receipt.arbitration_status, "approved");
+  assert.equal(arbitrated.receipt.payment_status, "settled");
+  assert.equal(collected.collectionStatus, "collected");
+  assert.equal(market.escrows.some((escrow) => escrow.escrow_uid === purchase.receipt.escrow_uid), true);
 });
 
 test("Aomi-facing server exposes the spec tool names with confirmation gates", async (t) => {
@@ -398,6 +452,16 @@ test("Aomi-facing server exposes the spec tool names with confirmation gates", a
   assert.equal(preview.status, 200);
   const previewBody = (await preview.json()) as { status: string };
   assert.equal(previewBody.status, "confirmation_required");
+
+  const settlementPreview = await fetch(`http://127.0.0.1:${port}/tool/create_arkhai_escrow`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ listingPath: "listing.json", buyerAgent: buyer }),
+  });
+  assert.equal(settlementPreview.status, 200);
+  const settlementPreviewBody = (await settlementPreview.json()) as { status: string; action: string };
+  assert.equal(settlementPreviewBody.status, "confirmation_required");
+  assert.equal(settlementPreviewBody.action, "create_arkhai_escrow");
 });
 
 test("CLI and local demo script emit compact JSON summaries", async () => {

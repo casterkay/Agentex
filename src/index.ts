@@ -27,12 +27,23 @@ export { type FilecoinUploadReceipt, uploadExperienceToFilecoin } from "./fileco
 export { createExecutionProof, verifyExecutionProof } from "./venue.js";
 export { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
 export {
+  collectExperiencePayment,
   createExperienceListing,
   createExperiencePurchase,
   inspectExperienceListing,
   recordExperienceFeedback,
+  requestExperienceArbitration,
+  submitExperienceFulfillment,
   verifyExperienceDelivery,
 } from "./market.js";
+export {
+  type ArkhaiEscrowRecord,
+  type ArkhaiSettlementClient,
+  createArkhaiSettlementClient,
+  createLiveArkhaiSettlementClient,
+  createLocalArkhaiSettlementClient,
+  listArkhaiEscrows,
+} from "./arkhai.js";
 export { type AgentexToolResult, invokeAgentexTool, planExchangeRound } from "./tools.js";
 export { createAgentexServer } from "./server.js";
 export { readDemoDeployment, requireEnv } from "./contracts.js";
