@@ -1,4 +1,7 @@
-import { loadDotEnv, requireEnv } from "../src/index.js";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+import { loadDotEnv, readDemoDeployment, requireEnv, stableJson } from "../src/index.js";
 
 const required = [
   "AGENTEX_RPC_URL",
@@ -17,10 +20,43 @@ const required = [
 async function main(): Promise<void> {
   await loadDotEnv();
   requireEnv(required);
+  const deploymentPath = process.env.AGENTEX_DEPLOYMENT_PATH ?? path.join("deployments", "live-v1.json");
+  const outputDir = process.env.AGENTEX_LIVE_OUTPUT_DIR ?? path.join("demo", "live-output");
+  const deployment = await readDemoDeployment(deploymentPath);
+  if (deployment.chain_id !== Number(process.env.AGENTEX_CHAIN_ID)) {
+    throw new Error(`deployment chain ${deployment.chain_id} does not match AGENTEX_CHAIN_ID`);
+  }
+  if (deployment.registry_address !== process.env.AGENTEX_REGISTRY_ADDRESS) {
+    throw new Error("deployment registry address does not match AGENTEX_REGISTRY_ADDRESS");
+  }
+  if (deployment.demo_venue_address !== process.env.AGENTEX_DEMO_VENUE_ADDRESS) {
+    throw new Error("deployment venue address does not match AGENTEX_DEMO_VENUE_ADDRESS");
+  }
+  await mkdir(outputDir, { recursive: true });
+  const preflightPath = path.join(outputDir, "preflight.json");
+  await writeFile(
+    preflightPath,
+    stableJson({
+      schema: "agentex.live_preflight.v1",
+      chain_id: deployment.chain_id,
+      registry_address: deployment.registry_address,
+      demo_venue_address: deployment.demo_venue_address,
+      experience_access_obligation_address: deployment.experience_access_obligation_address,
+      deployment_path: deploymentPath,
+      next_required: [
+        "run funded OpenClaw trades",
+        "upload encrypted experiences to Filecoin Pin",
+        "submit live registry attestations",
+        "settle purchases through Filecoin Pay and Arkhai",
+        "write demo/live-output/summary.json",
+      ],
+    }),
+  );
   process.stdout.write(
     `${JSON.stringify(
       {
         status: "ready_for_live_execution",
+        preflight_path: preflightPath,
         next_action:
           "run the Aomi-guided flow against funded wallets; this script is gated to avoid accidental spend in unconfigured environments",
       },

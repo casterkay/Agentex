@@ -53,7 +53,7 @@ export {
 } from "./arkhai.js";
 export { type AgentexToolResult, invokeAgentexTool, planExchangeRound } from "./tools.js";
 export { createAgentexServer } from "./server.js";
-export { readDemoDeployment, requireEnv } from "./contracts.js";
+export { buildDemoDeployment, readDemoDeployment, requireEnv } from "./contracts.js";
 export {
   OPENCLAW_MINI_CLUSTER_AGENTS,
   buildOpenClawMiniClusterPlan,

@@ -30,26 +30,30 @@ npm run typecheck
 git diff --check
 npm run contracts:compile
 node --import tsx scripts/run-local-v1.ts
+CARGO_HOME=/private/tmp/agentex-cargo CARGO_TARGET_DIR=/private/tmp/agentex-aomi-target cargo build --manifest-path aomi/agentex-app/Cargo.toml
 ```
 
 Current result:
 
-- `npm test`: 15/15 passing.
+- `npm test`: 20/20 passing.
 - `npm run typecheck`: passing.
 - `git diff --check`: passing.
 - `npm run contracts:compile`: writes `DemoTradeVenue`, `AgentexRegistry`, and `ExperienceAccessObligation` artifacts.
 - `scripts/run-local-v1.ts`: produces four agents, four experiences, four listings, four purchases, and four ingestions in local mode.
+- `scripts/deploy-demo-contracts.ts`: waits for deployment receipts and writes contract addresses plus block numbers on the next live deployment.
+- `scripts/run-live-v1.ts`: writes `demo/live-output/preflight.json` after env and deployment-address checks.
+- `aomi/agentex-app`: local Rust scaffold builds when Cargo cache/target directories are redirected to writable paths.
 
 Still not evidenced:
 
 - commits for individual tasks
-- live Monad deployment after the insufficient-balance blocker
+- fresh live Monad deployment with address/block-number receipt output
 - real Filecoin Pin upload receipts
 - real Filecoin Pay settlement paths
 - real Arkhai/Alkahest live escrow collection
 - ERC-8004 registrations
 - Kind/OpenClaw running pods
-- compiled Aomi SDK plugin
+- Aomi SDK-specific `DynAomiTool` plugin
 - final `demo/live-output/summary.json`
 
 ## File Structure
@@ -484,7 +488,7 @@ npm test
 
 Expected: FAIL because the market module still speaks profile-gene terms.
 
-- [ ] **Step 2: Implement listing guard**
+- [x] **Step 2: Implement listing guard**
 
 `createExperienceListing` must require:
 
@@ -711,7 +715,7 @@ open demo/market-view.html
 
 The runbook must include the final judge checklist from the spec's required live proof.
 
-- [ ] **Step 4: Complete market view**
+- [x] **Step 4: Complete market view**
 
 `demo/market-view.html` exists and reads `demo/live-output/summary.json`, falling back to `demo/local-output/summary.json`.
 
@@ -773,13 +777,13 @@ AGENTEX_SERVICE_URL=http://127.0.0.1:8787
 
 Current files exist under `aomi/agentex-app/`, and `tool.rs` lists the Agentex and Arkhai tool names. The wrapper still needs real `DynAomiTool` implementations that call `POST /tool/<tool_name>` and return normalized JSON.
 
-- [ ] **Step 3: Build wrapper**
+- [x] **Step 3: Build wrapper**
 
 ```bash
 cargo build --manifest-path aomi/agentex-app/Cargo.toml
 ```
 
-Expected: PASS when the SDK checkout is available.
+Verified: PASS on 2026-05-19 for the local Rust scaffold with `CARGO_HOME=/private/tmp/agentex-cargo CARGO_TARGET_DIR=/private/tmp/agentex-aomi-target`. SDK-specific tool binding remains blocked until `AOMI_SDK_REPO` is available.
 
 - [ ] **Step 4: Commit**
 

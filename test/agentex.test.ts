@@ -31,6 +31,7 @@ import {
   verifyExperienceDelivery,
   verifyExecutionProof,
   type ExperienceManifest,
+  buildDemoDeployment,
 } from "../src/index.js";
 import { loadDotEnv } from "../src/env.js";
 import {
@@ -314,6 +315,38 @@ test("Solidity contracts compile with the required demo venue and registry ABI",
   assert.ok(obligationNames.includes("ExperienceAccessFulfilled"));
   assert.ok(registryNames.includes("submitAttestation"));
   assert.ok(registryNames.includes("AttestationAccepted"));
+});
+
+test("demo deployment records contract addresses and receipt blocks", () => {
+  const deployment = buildDemoDeployment({
+    chainId: 10143,
+    deployer: "0x68CDad728b463048f640227Fd479E725d5478cB1",
+    decoderAddress: "0x33B62dA218280b6e771F86482D3cC22Acbb0D86F",
+    createdAt: "2026-05-19T00:00:00.000Z",
+    contracts: {
+      demoVenue: {
+        txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+        address: "0x1111111111111111111111111111111111111111",
+        blockNumber: 10n,
+      },
+      experienceAccessObligation: {
+        txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+        address: "0x2222222222222222222222222222222222222222",
+        blockNumber: 11n,
+      },
+      registry: {
+        txHash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+        address: "0x3333333333333333333333333333333333333333",
+        blockNumber: 12n,
+      },
+    },
+  });
+
+  assert.equal(deployment.demo_venue_address, "0x1111111111111111111111111111111111111111");
+  assert.equal(deployment.experience_access_obligation_address, "0x2222222222222222222222222222222222222222");
+  assert.equal(deployment.registry_address, "0x3333333333333333333333333333333333333333");
+  assert.equal(deployment.demo_venue_block_number, 10);
+  assert.equal(deployment.registry_block_number, 12);
 });
 
 test("execution proof and registry attestation fail closed on fill-price mismatch", async (t) => {
@@ -629,8 +662,79 @@ test("live script fails before spending money when required env is missing", () 
   );
 });
 
+test("live script writes a preflight artifact from deployment receipts", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-live-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const deploymentPath = path.join(root, "live-v1.json");
+  const outputDir = path.join(root, "live-output");
+  await writeFile(
+    deploymentPath,
+    stableJson(
+      buildDemoDeployment({
+        chainId: 10143,
+        deployer: "0x68CDad728b463048f640227Fd479E725d5478cB1",
+        decoderAddress: "0x33B62dA218280b6e771F86482D3cC22Acbb0D86F",
+        createdAt: "2026-05-19T00:00:00.000Z",
+        contracts: {
+          demoVenue: {
+            txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+            address: "0x1111111111111111111111111111111111111111",
+            blockNumber: 10,
+          },
+          experienceAccessObligation: {
+            txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+            address: "0x2222222222222222222222222222222222222222",
+            blockNumber: 11,
+          },
+          registry: {
+            txHash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+            address: "0x3333333333333333333333333333333333333333",
+            blockNumber: 12,
+          },
+        },
+      }),
+    ),
+  );
+
+  const output = execFileSync("node", ["--import", "tsx", "scripts/run-live-v1.ts"], {
+    cwd: path.resolve("."),
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      AGENTEX_RPC_URL: "https://rpc.example",
+      AGENTEX_CHAIN_ID: "10143",
+      AGENTEX_REGISTRY_ADDRESS: "0x3333333333333333333333333333333333333333",
+      AGENTEX_DEMO_VENUE_ADDRESS: "0x1111111111111111111111111111111111111111",
+      AGENTEX_DECODER_PRIVATE_KEY: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_ALPHA: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_BETA: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_GAMMA: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_DELTA: "0xabc",
+      PRIVATE_KEY: "0xabc",
+      AGENTEX_EXPERIENCE_KEY: key,
+      AGENTEX_DEPLOYMENT_PATH: deploymentPath,
+      AGENTEX_LIVE_OUTPUT_DIR: outputDir,
+    },
+  });
+  const body = JSON.parse(output) as { status: string; preflight_path: string };
+  const preflight = JSON.parse(readFileSync(body.preflight_path, "utf8")) as {
+    registry_address: string;
+    demo_venue_address: string;
+    next_required: string[];
+  };
+
+  assert.equal(body.status, "ready_for_live_execution");
+  assert.equal(preflight.registry_address, "0x3333333333333333333333333333333333333333");
+  assert.equal(preflight.demo_venue_address, "0x1111111111111111111111111111111111111111");
+  assert.ok(preflight.next_required.includes("run funded OpenClaw trades"));
+});
+
 test("market view and runbook exist for the judge path", () => {
-  assert.match(readFileSync(path.join("demo", "market-view.html"), "utf8"), /summary\.json/);
+  const marketView = readFileSync(path.join("demo", "market-view.html"), "utf8");
+  assert.match(marketView, /summary\.json/);
+  assert.match(marketView, /trade_tx_hash/);
+  assert.match(marketView, /encrypted_experience_cid/);
+  assert.match(marketView, /decryption_verification_result/);
   assert.match(readFileSync(path.join("demo", "live-runbook.md"), "utf8"), /npm run demo:live/);
 });
 

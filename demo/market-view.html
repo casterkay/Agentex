@@ -44,27 +44,37 @@
       .muted {
         color: #666;
       }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      .status {
+        white-space: nowrap;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>Agentex V1 Market View</h1>
       <p class="muted">Reads <code>demo/live-output/summary.json</code>, falling back to <code>demo/local-output/summary.json</code> for local rehearsals.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Leg</th>
-            <th>Experience</th>
-            <th>Attestation</th>
-            <th>Listing</th>
-            <th>Purchase</th>
-            <th>Ingestion</th>
-          </tr>
-        </thead>
-        <tbody id="rows">
-          <tr><td colspan="6">Loading summary.json...</td></tr>
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Leg</th>
+              <th>Trade Summary</th>
+              <th>Encrypted CID</th>
+              <th>Attestation</th>
+              <th>Listing</th>
+              <th>Purchase</th>
+              <th>Verification</th>
+              <th>Ingestion</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr><td colspan="8">Loading summary.json...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </main>
     <script>
       async function loadSummary() {
@@ -77,26 +87,63 @@
         throw new Error("summary.json not found");
       }
 
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function field(value) {
+        return value ? `<code>${escapeHtml(value)}</code>` : '<span class="muted">missing</span>';
+      }
+
+      function tradeSummary(summary, index) {
+        const listingSummary = summary.listings?.[index]?.public_trade_summary;
+        const experienceSummary = summary.experiences?.[index]?.public_trade_summary;
+        const item = listingSummary || experienceSummary || summary.experiences?.[index] || {};
+        const trade_tx_hash = item.trade_tx_hash;
+        const pair = item.pair;
+        const side = item.side;
+        const fill = item.fill_price;
+        return [
+          pair || side || fill ? `<span>${escapeHtml([pair, side, fill].filter(Boolean).join(" "))}</span>` : "",
+          field(trade_tx_hash),
+        ].filter(Boolean).join("<br />");
+      }
+
       loadSummary()
         .then((summary) => {
           const rows = document.getElementById("rows");
           rows.innerHTML = "";
           const round = summary.round || [];
           round.forEach((leg, index) => {
+            const listing = summary.listings?.[index] || {};
+            const purchase = summary.purchases?.[index] || {};
+            const experience = summary.experiences?.[index] || {};
+            const attestation = summary.attestations?.[index] || {};
+            const ingestion = summary.ingestions?.[index] || {};
+            const encrypted_experience_cid =
+              listing.encrypted_experience_cid || experience.encrypted_experience_cid || attestation.encrypted_experience_cid;
+            const decryption_verification_result = purchase.decryption_verification_result?.status || purchase.decryption_verification_status;
             const tr = document.createElement("tr");
             tr.innerHTML = `
-              <td>${leg.buyer} buys ${leg.seller}</td>
-              <td><code>${summary.experiences?.[index]?.experience_id || ""}</code></td>
-              <td><code>${summary.attestations?.[index]?.attestation_id || ""}</code></td>
-              <td><code>${summary.listings?.[index]?.listing_id || ""}</code></td>
-              <td><code>${summary.purchases?.[index]?.purchase_id || ""}</code></td>
-              <td><code>${summary.ingestions?.[index]?.path || ""}</code></td>
+              <td>${escapeHtml(leg.buyer)} buys ${escapeHtml(leg.seller)}</td>
+              <td>${tradeSummary(summary, index)}</td>
+              <td>${field(encrypted_experience_cid)}</td>
+              <td>${field(attestation.attestation_id)}</td>
+              <td>${field(listing.listing_id)}</td>
+              <td>${field(purchase.purchase_id)}</td>
+              <td class="status">${escapeHtml(decryption_verification_result || "pending")}</td>
+              <td>${field(ingestion.path || ingestion.ingestion_path)}</td>
             `;
             rows.appendChild(tr);
           });
         })
         .catch((error) => {
-          document.getElementById("rows").innerHTML = `<tr><td colspan="6">${error.message}</td></tr>`;
+          document.getElementById("rows").innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
         });
     </script>
   </body>
