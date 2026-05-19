@@ -7,6 +7,34 @@ export function createAgentexServer(): Server {
   return createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      // Set CORS headers
+      response.setHeader("Access-Control-Allow-Origin", "*");
+      response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+      if (request.method === "OPTIONS") {
+        response.writeHead(204);
+        response.end();
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/summary") {
+        const { readFileSync } = await import("node:fs");
+        try {
+          let summaryData;
+          try {
+            summaryData = readFileSync("demo/live-output/summary.json", "utf8");
+          } catch {
+            summaryData = readFileSync("demo/local-output/summary.json", "utf8");
+          }
+          sendJson(response, 200, JSON.parse(summaryData));
+        } catch (error) {
+          sendJson(response, 404, { status: "error", error: "summary.json not found" });
+        }
+        return;
+      }
+
       if (request.method !== "POST" || !url.pathname.startsWith("/tool/")) {
         sendJson(response, 404, { status: "error", error: "route not found" });
         return;
