@@ -54,7 +54,7 @@ Cut line: the judged demo must show real onchain trade TxHashes, real encrypted 
 - Create: `src/schemas.ts`
 - Replace: `test/agentex.test.ts`
 
-- [ ] **Step 1: Add runtime dependencies**
+- [x] **Step 1: Add runtime dependencies**
 
 Run:
 
@@ -65,7 +65,7 @@ npm install --save-dev solc
 
 Expected: `package.json` contains `viem`, `zod`, and `solc`; `package-lock.json` is updated.
 
-- [ ] **Step 2: Add schema-first tests**
+- [x] **Step 2: Add schema-first tests**
 
 Write tests in `test/agentex.test.ts` for these exact schema names:
 
@@ -86,7 +86,7 @@ npm test
 
 Expected: FAIL because `src/schemas.ts` does not exist.
 
-- [ ] **Step 3: Implement V1 TypeScript schemas**
+- [x] **Step 3: Implement V1 TypeScript schemas**
 
 Create `src/schemas.ts` with zod schemas for the required fields in the architecture spec. Use snake_case field names in persisted JSON:
 
@@ -140,7 +140,7 @@ git commit -m "feat: define trade experience schemas"
 - Create: `src/contracts.ts`
 - Test: `test/agentex.test.ts`
 
-- [ ] **Step 1: Write contract behavior tests as TypeScript assertions**
+- [x] **Step 1: Write contract behavior tests as TypeScript assertions**
 
 Add tests that compile contracts with `solc` and assert ABI functions/events exist:
 
@@ -159,7 +159,7 @@ npm test
 
 Expected: FAIL because contracts do not exist.
 
-- [ ] **Step 2: Create `DemoTradeVenue.sol`**
+- [x] **Step 2: Create `DemoTradeVenue.sol`**
 
 The contract must expose:
 
@@ -247,7 +247,7 @@ git commit -m "feat: add live demo venue and registry"
 - Create: `demo/agents/alpha/.openclaw/memory/2026-05-18.md`
 - Create: `demo/agents/alpha/activity/trade.json`
 
-- [ ] **Step 1: Write failing extraction and encryption tests**
+- [x] **Step 1: Write failing extraction and encryption tests**
 
 The fixture must include exactly one trade and must fail if two trade entries are present.
 
@@ -268,7 +268,7 @@ npm test
 
 Expected: FAIL because `createTradeExperienceAsset` does not exist.
 
-- [ ] **Step 2: Implement extraction**
+- [x] **Step 2: Implement extraction**
 
 Create `createTradeExperienceAsset(input)` in `src/experience.ts`.
 
@@ -295,7 +295,7 @@ redaction.json
 
 The plaintext `experience.json` stays local and must not be uploaded. `manifest.json` commits to the encrypted hash and decrypted hash.
 
-- [ ] **Step 3: Implement fail-closed redaction**
+- [x] **Step 3: Implement fail-closed redaction**
 
 Block plaintext containing:
 
@@ -350,7 +350,7 @@ git commit -m "feat: package encrypted trade experiences"
 - Modify: `src/index.ts`
 - Test: `test/agentex.test.ts`
 
-- [ ] **Step 1: Write failing proof tests**
+- [x] **Step 1: Write failing proof tests**
 
 Assertions:
 
@@ -417,7 +417,7 @@ git commit -m "feat: attest trade experiences on registry"
 - Modify: `src/index.ts`
 - Test: `test/agentex.test.ts`
 
-- [ ] **Step 1: Write failing listing and purchase tests**
+- [x] **Step 1: Write failing listing and purchase tests**
 
 Assertions:
 
@@ -449,11 +449,11 @@ Expected: FAIL because the market module still speaks profile-gene terms.
 - settlement framework is `arkhai_nla`
 - payment asset is explicit, such as `USDFC`
 
-- [ ] **Step 3: Implement purchase and delivery verification**
+- [x] **Step 3: Implement purchase and delivery verification**
 
 `createExperiencePurchase` records Filecoin Pay payment reference and Arkhai escrow ID. `verifyExperienceDelivery` decrypts the payload and compares the plaintext SHA-256 hash with the registry commitment.
 
-- [ ] **Step 4: Implement ingestion preparation**
+- [x] **Step 4: Implement ingestion preparation**
 
 `prepareExperienceIngestion` writes a buyer-local file:
 
@@ -513,7 +513,7 @@ Expected: FAIL because current tools are gene-oriented.
 
 Every write tool must return `confirmation_required` when `confirm !== true`. The preview must include exact IDs, public storage risk, payment amount, registry address, or ingestion path depending on the action.
 
-- [ ] **Step 3: Replace CLI commands**
+- [x] **Step 3: Replace CLI commands**
 
 New CLI shape:
 
@@ -547,7 +547,7 @@ git commit -m "feat: expose aomi experience tools"
 - Create: `demo/local-output/.gitkeep`
 - Test: `test/agentex.test.ts`
 
-- [ ] **Step 1: Write failing four-agent test**
+- [x] **Step 1: Write failing four-agent test**
 
 The test must run the local script and assert:
 
@@ -559,7 +559,7 @@ assert.equal(summary.purchases.length, 4);
 assert.equal(summary.ingestions.length, 4);
 ```
 
-- [ ] **Step 2: Implement local round**
+- [x] **Step 2: Implement local round**
 
 `scripts/run-local-v1.ts` must create a closed exchange:
 
@@ -590,7 +590,7 @@ git commit -m "feat: add four-agent local exchange demo"
 - Modify: `package.json`
 - Test: `test/agentex.test.ts`
 
-- [ ] **Step 1: Add npm scripts**
+- [x] **Step 1: Add npm scripts**
 
 Add:
 
@@ -605,7 +605,7 @@ Add:
 }
 ```
 
-- [ ] **Step 2: Implement live script gates**
+- [x] **Step 2: Implement live script gates**
 
 `scripts/run-live-v1.ts` must fail before spending money if any required env var is missing:
 
@@ -623,7 +623,7 @@ PRIVATE_KEY
 AGENTEX_EXPERIENCE_KEY
 ```
 
-- [ ] **Step 3: Write live runbook**
+- [x] **Step 3: Write live runbook**
 
 `demo/live-runbook.md` must include exact commands for:
 
