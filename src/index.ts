@@ -23,7 +23,14 @@ export {
   prepareExperienceIngestion,
   verifyExperiencePayload,
 } from "./experience.js";
-export { type FilecoinUploadReceipt, uploadExperienceToFilecoin } from "./filecoin.js";
+export {
+  type FilecoinUploadReceipt,
+  type FilecoinUploadBundle,
+  type FilecoinUploadResultInput,
+  applyFilecoinUploadResult,
+  prepareFilecoinUploadBundle,
+  uploadExperienceToFilecoin,
+} from "./filecoin.js";
 export { createExecutionProof, verifyExecutionProof } from "./venue.js";
 export { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
 export {

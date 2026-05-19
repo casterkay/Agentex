@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import {
+  applyFilecoinUploadResult,
   createAgentexServer,
   createExecutionProof,
   createExperienceListing,
@@ -17,8 +18,10 @@ import {
   listArkhaiEscrows,
   planExchangeRound,
   prepareExperienceIngestion,
+  prepareFilecoinUploadBundle,
   prepareRegistryAttestation,
   recordExperienceFeedback,
+  readJson,
   requestExperienceArbitration,
   sha256,
   stableJson,
@@ -27,6 +30,7 @@ import {
   tradeExperienceSchema,
   verifyExperienceDelivery,
   verifyExecutionProof,
+  type ExperienceManifest,
 } from "../src/index.js";
 import { loadDotEnv } from "../src/env.js";
 import {
@@ -245,6 +249,57 @@ test("createTradeExperienceAsset fails closed on multi-trade activity or denied 
   );
 });
 
+test("Filecoin upload result upgrades local manifest to Filecoin storage proof", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const asset = await createTradeExperienceAsset({
+    activityPath: fixture.activityPath,
+    memoryPath: fixture.memoryPath,
+    sellerAgent: seller,
+    key,
+  });
+
+  const uploaded = await applyFilecoinUploadResult({
+    manifestPath: asset.paths.manifest,
+    rootCid: "bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5fe",
+    pieceCid: "baga6ea4seaqexamplepiececid",
+    size: 1234,
+    complete: true,
+    copies: [{ provider: "demo-provider" }],
+  });
+  const manifest = await readJson<ExperienceManifest>(asset.paths.manifest);
+
+  assert.equal(uploaded.receipt.schema, "agentex.filecoin_upload.v1");
+  assert.equal(manifest.encrypted_experience_cid, "bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5fe");
+  assert.deepEqual(manifest.storage_proof_fields, {
+    provider: "filecoin-pin",
+    status: "verified",
+    root_cid: "bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5fe",
+    piece_cid: "baga6ea4seaqexamplepiececid",
+    size: 1234,
+    complete: true,
+    copies: [{ provider: "demo-provider" }],
+  });
+});
+
+test("Filecoin upload bundle excludes plaintext experience files", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const asset = await createTradeExperienceAsset({
+    activityPath: fixture.activityPath,
+    memoryPath: fixture.memoryPath,
+    sellerAgent: seller,
+    key,
+  });
+  await writeFile(path.join(asset.paths.root, "execution-proof.json"), stableJson({ proof: true }));
+
+  const bundle = await prepareFilecoinUploadBundle(asset.paths.manifest);
+  t.after(() => rm(bundle.bundlePath, { recursive: true, force: true }));
+  const entries = (await readdir(bundle.bundlePath)).sort();
+
+  assert.deepEqual(entries, ["execution-proof.json", "experience.enc.json", "manifest.json", "redaction.json"]);
+});
+
 test("Solidity contracts compile with the required demo venue and registry ABI", async (t) => {
   const outDir = mkdtempSync(path.join(tmpdir(), "agentex-artifacts-"));
   t.after(() => rm(outDir, { recursive: true, force: true }));
@@ -370,6 +425,73 @@ test("market listing, purchase, delivery verification, ingestion, and feedback f
 
   const inspected = await inspectExperienceListing({ listingPath: listing.path });
   assert.equal(inspected.listing_id, listing.listing.listing_id);
+});
+
+test("live listing rejects local storage and accepts Filecoin-backed manifests", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const asset = await createTradeExperienceAsset({
+    activityPath: fixture.activityPath,
+    memoryPath: fixture.memoryPath,
+    sellerAgent: seller,
+    key,
+  });
+
+  await assert.rejects(
+    createExperienceListing({
+      manifestPath: asset.paths.manifest,
+      attestationId: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      priceAmount: "5",
+      paymentAsset: "USDFC",
+      mode: "live",
+    }),
+    /Filecoin storage proof required/i,
+  );
+
+  await applyFilecoinUploadResult({
+    manifestPath: asset.paths.manifest,
+    rootCid: "bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5fe",
+    pieceCid: "baga6ea4seaqexamplepiececid",
+    size: 1234,
+    complete: true,
+    copies: [],
+  });
+  const uploadedManifest = await readJson<ExperienceManifest>(asset.paths.manifest);
+  await writeFile(
+    asset.paths.manifest,
+    stableJson({
+      ...uploadedManifest,
+      storage_proof_fields: { ...uploadedManifest.storage_proof_fields, root_cid: "bafybeibadproof" },
+    }),
+  );
+  await assert.rejects(
+    createExperienceListing({
+      manifestPath: asset.paths.manifest,
+      attestationId: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      priceAmount: "5",
+      paymentAsset: "USDFC",
+      mode: "live",
+    }),
+    /Filecoin storage proof required/i,
+  );
+  await applyFilecoinUploadResult({
+    manifestPath: asset.paths.manifest,
+    rootCid: "bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5fe",
+    pieceCid: "baga6ea4seaqexamplepiececid",
+    size: 1234,
+    complete: true,
+    copies: [],
+  });
+  const listing = await createExperienceListing({
+    manifestPath: asset.paths.manifest,
+    attestationId: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    priceAmount: "5",
+    paymentAsset: "USDFC",
+    mode: "live",
+  });
+
+  assert.equal(listing.listing.encrypted_experience_cid, "bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5fe");
+  assert.equal(listing.listing.status, "live");
 });
 
 test("local Arkhai settlement lifecycle records escrow, fulfillment, arbitration, and collection", async (t) => {

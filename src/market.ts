@@ -17,8 +17,12 @@ export async function createExperienceListing(input: {
   attestationId: string;
   priceAmount: string;
   paymentAsset: string;
+  mode?: "local" | "live";
 }): Promise<{ listing: MarketListing; path: string }> {
   const manifest = await readJson<ExperienceManifest>(input.manifestPath);
+  if (input.mode === "live") {
+    assertFilecoinStorageProof(manifest);
+  }
   const listing = marketListingSchema.parse({
     schema: "agentex.market_listing.v1",
     listing_id: sha256(stableJson({ manifest: manifest.experience_id, attestation: input.attestationId })).slice(0, 32),
@@ -43,6 +47,22 @@ export async function createExperienceListing(input: {
   const listingPath = path.join(path.dirname(input.manifestPath), "listing.json");
   await writeFile(listingPath, stableJson(listing));
   return { listing, path: listingPath };
+}
+
+function assertFilecoinStorageProof(manifest: ExperienceManifest): void {
+  const storage = manifest.storage_proof_fields;
+  if (
+    manifest.encrypted_experience_cid.startsWith("local:") ||
+    storage.provider !== "filecoin-pin" ||
+    storage.status !== "verified" ||
+    typeof storage.root_cid !== "string" ||
+    storage.root_cid.length === 0 ||
+    storage.root_cid !== manifest.encrypted_experience_cid ||
+    typeof storage.piece_cid !== "string" ||
+    storage.piece_cid.length === 0
+  ) {
+    throw new Error("Filecoin storage proof required before live listing");
+  }
 }
 
 export async function inspectExperienceListing(input: { listingPath: string }): Promise<MarketListing> {

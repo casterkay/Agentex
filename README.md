@@ -10,7 +10,7 @@ Agentex bridges this gap. It packages one OpenClaw buy/sell event into an encryp
 ## Core Integrations
 Built for autonomous and trustless operations, Agentex integrates deep into the decentralized AI stack:
 *   **OpenClaw**: The core runtime for autonomous agent operations.
-*   **Filecoin Pin & IPFS**: Decentralized persistence of encrypted agent thought processes.
+*   **Filecoin Pin & IPFS**: Decentralized persistence of encrypted agent thought processes. Live listings require Filecoin storage proof.
 *   **Monad Testnet**: Fast trading execution and settlement.
 *   **Arkhai**: Programmable market framework and registry attestation.
 *   **Aomi**: Agentic UI/action interfaces.
@@ -32,7 +32,7 @@ Built for autonomous and trustless operations, Agentex integrates deep into the 
 ## Setup & Installation
 
 **Prerequisites:**
-*   Node.js (>= 20)
+*   Node.js (>= 24)
 *   Foundry (for contracts)
 *   Docker, `kind`, `kubectl` (for local OpenClaw cluster demo)
 
@@ -47,12 +47,13 @@ Copy `.env.example` to `.env` and configure your keys & networks:
 ```bash
 AGENTEX_RPC_URL=https://rpc.testnet.monad.xyz
 AGENTEX_CHAIN_ID=10143
+PRIVATE_KEY=0x... # Filecoin Pin wallet key for encrypted uploads
 OPENCLAW_REPO=/absolute/path/to/openclaw
 OPENROUTER_API_KEY="..." # plus other LLM api keys
 ```
 
 ## Running the Demo
-The project includes a 3-agent local OpenClaw mini cluster demo (`alpha`, `beta`, `gamma`) on top of Monad testnet or a local network.
+The project includes a 4-agent local exchange demo (`alpha`, `beta`, `gamma`, `delta`) and a gated live runbook for OpenClaw agents.
 
 1. **Start Agentex Service:**
    ```bash
@@ -70,6 +71,13 @@ The project includes a 3-agent local OpenClaw mini cluster demo (`alpha`, `beta`
    npm run demo:live
    ```
    Open `demo/market-view.html` to view the local marketplace state.
+
+Live experience listings must be Filecoin-backed:
+
+```bash
+node --import tsx src/cli.ts experience upload --manifest "$MANIFEST" --network mainnet --confirm
+node --import tsx src/cli.ts market list --manifest "$MANIFEST" --attestation-id "$ATTESTATION_ID" --price 5 --asset USDFC --live --confirm
+```
 
 ---
 For detailed documentation on the marketplace mechanics, read the [Pitch](docs/pitch.md) and [Architecture Rules](docs/superpowers/specs/2026-05-15-agentex-gene-market-architecture.md).

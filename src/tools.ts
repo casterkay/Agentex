@@ -123,6 +123,7 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         attestationId: stringArg(args, "attestationId"),
         priceAmount: stringArg(args, "priceAmount"),
         paymentAsset: stringArg(args, "paymentAsset"),
+        mode: args.live === true ? "live" : "local",
       });
     case "inspect_experience_listing":
       return { status: "ready", listing: await inspectExperienceListing({ listingPath: stringArg(args, "listingPath") }) };

@@ -117,6 +117,7 @@ market
   .requiredOption("--attestation-id <id>")
   .requiredOption("--price <amount>")
   .requiredOption("--asset <asset>")
+  .option("--live", "require Filecoin storage proof before listing")
   .option("--confirm")
   .action(async (options) => {
     requireConfirm(options.confirm);
@@ -125,6 +126,7 @@ market
       attestationId: options.attestationId,
       priceAmount: options.price,
       paymentAsset: options.asset,
+      mode: options.live ? "live" : "local",
     });
     print({ status: "listed", listing_path: listing.path, listing: listing.listing });
   });
