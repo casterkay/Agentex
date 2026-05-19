@@ -70,7 +70,7 @@ The project includes a 4-agent local exchange demo (`alpha`, `beta`, `gamma`, `d
    npm run openclaw:deploy
    npm run demo:live
    ```
-   Open `demo/market-view.html` to view the local marketplace state.
+   Start the web dashboard with `cd web && npm run dev`, then open `http://localhost:3000` to view the marketplace state. For a deployed copy, point the Vercel project root to `web` and set `AGENTEX_SUMMARY_URL` if you want live remote summary data instead of the bundled demo snapshot.
 
 Live experience listings must be Filecoin-backed:
 

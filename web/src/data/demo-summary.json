@@ -1,0 +1,138 @@
+{
+  "agents": [
+    "alpha",
+    "beta",
+    "gamma",
+    "delta"
+  ],
+  "attestations": [
+    {
+      "agent": "alpha",
+      "attestation_id": "0x18ff3ad4ea56ac46584b283247f8fd9f58659d6a5a9c17bb955c3303fe872f89"
+    },
+    {
+      "agent": "beta",
+      "attestation_id": "0x58d138b1071e608b8c475095eeb9012edeb682208370a5207d7dcb875a69d85b"
+    },
+    {
+      "agent": "gamma",
+      "attestation_id": "0xe16cb848681d7e6390588688d37df806f6391d143abb880b10932a30782cbbf5"
+    },
+    {
+      "agent": "delta",
+      "attestation_id": "0x1b326791b28ce46998a17be989a5f32b0a485cf0e952f66b4f8d97ef9330e1c8"
+    }
+  ],
+  "experiences": [
+    {
+      "agent": "alpha",
+      "experience_id": "443b3a145f8da1fe3bb045dfd947d5b2",
+      "manifest_path": "/Users/tcai/Projects/Agentex/demo/local-output/alpha/manifest.json"
+    },
+    {
+      "agent": "beta",
+      "experience_id": "e2adc825bb1118e322fcb8e5c21c7299",
+      "manifest_path": "/Users/tcai/Projects/Agentex/demo/local-output/beta/manifest.json"
+    },
+    {
+      "agent": "gamma",
+      "experience_id": "971b42ae8709dce22c4174a893bd7b31",
+      "manifest_path": "/Users/tcai/Projects/Agentex/demo/local-output/gamma/manifest.json"
+    },
+    {
+      "agent": "delta",
+      "experience_id": "9417d922ea1cc0dfb5218640af3a9642",
+      "manifest_path": "/Users/tcai/Projects/Agentex/demo/local-output/delta/manifest.json"
+    }
+  ],
+  "ingestions": [
+    {
+      "buyer": "alpha",
+      "path": "demo/agents/alpha/.openclaw/imports/agentex/3219de49fa1ede32010e09fcee080f83.json",
+      "seller": "beta"
+    },
+    {
+      "buyer": "beta",
+      "path": "demo/agents/beta/.openclaw/imports/agentex/7910a4617893511a599df1039fa87be3.json",
+      "seller": "gamma"
+    },
+    {
+      "buyer": "gamma",
+      "path": "demo/agents/gamma/.openclaw/imports/agentex/9b05da08494802baaa276b3f220fefbb.json",
+      "seller": "delta"
+    },
+    {
+      "buyer": "delta",
+      "path": "demo/agents/delta/.openclaw/imports/agentex/292be09927a755bd377142116ca64089.json",
+      "seller": "alpha"
+    }
+  ],
+  "listings": [
+    {
+      "agent": "alpha",
+      "listing_id": "993d9f6cbc1f45b731ace398cc05c5ca",
+      "listing_path": "/Users/tcai/Projects/Agentex/demo/local-output/alpha/listing.json"
+    },
+    {
+      "agent": "beta",
+      "listing_id": "cc9d595e074b1af1b8006996e2e82e60",
+      "listing_path": "/Users/tcai/Projects/Agentex/demo/local-output/beta/listing.json"
+    },
+    {
+      "agent": "gamma",
+      "listing_id": "04ba338d97d2725cb7fe6981191f758c",
+      "listing_path": "/Users/tcai/Projects/Agentex/demo/local-output/gamma/listing.json"
+    },
+    {
+      "agent": "delta",
+      "listing_id": "0bf65e31295136c7dce7e5ddb9f9c626",
+      "listing_path": "/Users/tcai/Projects/Agentex/demo/local-output/delta/listing.json"
+    }
+  ],
+  "mode": "local",
+  "purchases": [
+    {
+      "buyer": "alpha",
+      "path": "/Users/tcai/Projects/Agentex/demo/local-output/beta/purchase-1.json",
+      "purchase_id": "3219de49fa1ede32010e09fcee080f83",
+      "seller": "beta"
+    },
+    {
+      "buyer": "beta",
+      "path": "/Users/tcai/Projects/Agentex/demo/local-output/gamma/purchase-2.json",
+      "purchase_id": "7910a4617893511a599df1039fa87be3",
+      "seller": "gamma"
+    },
+    {
+      "buyer": "gamma",
+      "path": "/Users/tcai/Projects/Agentex/demo/local-output/delta/purchase-3.json",
+      "purchase_id": "9b05da08494802baaa276b3f220fefbb",
+      "seller": "delta"
+    },
+    {
+      "buyer": "delta",
+      "path": "/Users/tcai/Projects/Agentex/demo/local-output/alpha/purchase-4.json",
+      "purchase_id": "292be09927a755bd377142116ca64089",
+      "seller": "alpha"
+    }
+  ],
+  "round": [
+    {
+      "buyer": "alpha",
+      "seller": "beta"
+    },
+    {
+      "buyer": "beta",
+      "seller": "gamma"
+    },
+    {
+      "buyer": "gamma",
+      "seller": "delta"
+    },
+    {
+      "buyer": "delta",
+      "seller": "alpha"
+    }
+  ],
+  "schema": "agentex.demo_summary.v1"
+}

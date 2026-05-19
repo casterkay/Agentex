@@ -127,12 +127,12 @@ payment reference for each purchase.
 ```bash
 npm run live:check
 npm run demo:live
-open demo/market-view.html
+cd web && npm run dev
 ```
 
 `npm run demo:live` currently writes `demo/live-output/preflight.json` after env and deployment
 checks. Final live evidence still requires the funded OpenClaw, Filecoin Pay, ERC-8004, and
-Arkhai/Alkahest steps above to produce `demo/live-output/summary.json`.
+Arkhai/Alkahest steps above to produce `demo/live-output/summary.json`. Open `http://localhost:3000` to inspect the web dashboard, or configure `AGENTEX_SUMMARY_URL` when deploying the app so it can read a public summary endpoint.
 
 ## Judge Checklist
 

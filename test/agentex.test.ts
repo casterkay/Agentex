@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { compileContracts } from "../scripts/compile-contracts.js";
+import { loadDotEnv } from "../src/env.js";
 import {
   applyFilecoinUploadResult,
+  buildDemoDeployment,
   createAgentexServer,
   createExecutionProof,
   createExperienceListing,
@@ -20,26 +23,23 @@ import {
   prepareExperienceIngestion,
   prepareFilecoinUploadBundle,
   prepareRegistryAttestation,
-  recordExperienceFeedback,
   readJson,
+  recordExperienceFeedback,
   requestExperienceArbitration,
   sha256,
   stableJson,
   submitExperienceFulfillment,
   submitRegistryAttestation,
   tradeExperienceSchema,
-  verifyExperienceDelivery,
   verifyExecutionProof,
+  verifyExperienceDelivery,
   type ExperienceManifest,
-  buildDemoDeployment,
 } from "../src/index.js";
-import { loadDotEnv } from "../src/env.js";
 import {
   OPENCLAW_MINI_CLUSTER_AGENTS,
   buildOpenClawMiniClusterPlan,
   openClawNamespace,
 } from "../src/openclaw.js";
-import { compileContracts } from "../scripts/compile-contracts.js";
 
 const key = "0123456789abcdef0123456789abcdef";
 const seller = { agentRegistry: "eip155:8453:0xregistry", agentId: "1" };
@@ -799,13 +799,13 @@ test("live setup checker separates manual blockers from automated next steps", a
   assert.ok(report.manual_setup.includes("fund demo wallets and confirm live spend budget"));
 });
 
-test("market view and runbook exist for the judge path", () => {
-  const marketView = readFileSync(path.join("demo", "market-view.html"), "utf8");
-  assert.match(marketView, /summary\.json/);
-  assert.match(marketView, /trade_tx_hash/);
-  assert.match(marketView, /encrypted_experience_cid/);
-  assert.match(marketView, /decryption_verification_result/);
+test("web dashboard and runbook exist for the judge path", () => {
+  const webPage = readFileSync(path.join("web", "src", "app", "page.tsx"), "utf8");
+  assert.match(webPage, /AGENTEX_SUMMARY_URL/);
+  assert.match(webPage, /Bundled Snapshot/);
+  assert.match(webPage, /Transaction Ledger/);
   assert.match(readFileSync(path.join("demo", "live-runbook.md"), "utf8"), /npm run demo:live/);
+  assert.match(readFileSync(path.join("demo", "live-runbook.md"), "utf8"), /http:\/\/localhost:3000/);
 });
 
 function restoreEnv(name: string, value: string | undefined): void {

@@ -1,24 +1,59 @@
-import { AgentProfiles } from "./components/AgentProfiles"
-import { TransactionLedger } from "./components/TransactionLedger"
+import demoSummary from "@/data/demo-summary.json"
 import { Activity } from "lucide-react"
 
+import { AgentProfiles } from "./components/AgentProfiles"
+import { TransactionLedger } from "./components/TransactionLedger"
+
+type SummaryPayload = typeof demoSummary
+type SummarySource = "remote" | "local-api" | "snapshot"
+
+async function fetchSummary(url: string): Promise<SummaryPayload> {
+  const res = await fetch(url, {
+    next: { revalidate: 2 },
+  })
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch summary from ${url}`)
+  }
+
+  return res.json()
+}
+
 async function getSummaryData() {
-  // Try to fetch from the local Agentex CLI serve endpoint
-  try {
-    const res = await fetch("http://127.0.0.1:8787/api/summary", { 
-      next: { revalidate: 2 } // revalidate frequently for demo updates 
-    })
-    if (!res.ok) throw new Error("Failed to fetch summary")
-    return res.json()
-  } catch (error) {
-    console.error("Agentex API not available:", error)
-    return null
+  const remoteSummaryUrl = process.env.AGENTEX_SUMMARY_URL?.trim()
+
+  if (remoteSummaryUrl) {
+    try {
+      return {
+        source: "remote" as const,
+        summary: await fetchSummary(remoteSummaryUrl),
+      }
+    } catch (error) {
+      console.error("Configured Agentex summary URL is unavailable:", error)
+    }
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      return {
+        source: "local-api" as const,
+        summary: await fetchSummary("http://127.0.0.1:8787/api/summary"),
+      }
+    } catch (error) {
+      console.error("Local Agentex API not available, falling back to bundled demo summary:", error)
+    }
+  }
+
+  return {
+    source: "snapshot" as const,
+    summary: demoSummary,
   }
 }
 
 export default async function Home() {
-  const summary = await getSummaryData()
+  const { source, summary } = await getSummaryData()
   const mode = summary?.mode || "Unknown"
+  const connectionLabel = source === "snapshot" ? "Bundled Snapshot" : "Live Summary"
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-20">
@@ -34,12 +69,12 @@ export default async function Home() {
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-slate-500 flex items-center gap-1.5">
               <span className="relative flex h-2.5 w-2.5">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${summary ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${summary ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${source === "snapshot" ? "bg-amber-300" : "bg-emerald-400"}`}></span>
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${source === "snapshot" ? "bg-amber-500" : "bg-emerald-500"}`}></span>
               </span>
-              {summary ? "API Connected" : "API Offline"}
+              {connectionLabel}
             </span>
-            <div className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${mode === 'live' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>
+            <div className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${mode === "live" ? "bg-indigo-100 text-indigo-700 border border-indigo-200" : "bg-slate-100 text-slate-700 border border-slate-200"}`}>
               {mode} Mode
             </div>
           </div>
@@ -47,31 +82,29 @@ export default async function Home() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 mt-8">
-        {!summary ? (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-lg flex flex-col items-center justify-center text-center">
-            <Activity className="w-10 h-10 mb-3 text-rose-400" />
-            <h2 className="text-lg font-semibold mb-1">Cannot reach Agentex API</h2>
-            <p className="text-sm opacity-80 mb-4 max-w-md">Ensure you are running <code className="bg-white px-1.5 py-0.5 rounded border">npm run demo:local</code> and <code className="bg-white px-1.5 py-0.5 rounded border">agentex serve</code> on port 8787.</p>
+        <>
+          {source === "snapshot" ? (
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Showing the bundled demo snapshot for deployment safety. Set <code className="rounded border bg-white px-1.5 py-0.5">AGENTEX_SUMMARY_URL</code> to a public summary endpoint, or run <code className="rounded border bg-white px-1.5 py-0.5">node --import tsx src/cli.ts serve --host 127.0.0.1 --port 8787</code> during local development for live updates.
+            </div>
+          ) : null}
+
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-1">Agent Activity</h2>
+            <p className="text-slate-500 text-sm">Real-time status of trading agents participating in the market.</p>
           </div>
-        ) : (
-          <>
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold mb-1">Agent Activity</h2>
-              <p className="text-slate-500 text-sm">Real-time status of trading agents participating in the market.</p>
-            </div>
-            
-            <AgentProfiles summary={summary} />
 
-            <div className="mb-6 mt-12 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold mb-1">Transaction Ledger</h2>
-                <p className="text-slate-500 text-sm">End-to-end trace of experience assets: execution, attestation, listing, purchase, and cryptographic verification.</p>
-              </div>
-            </div>
+          <AgentProfiles summary={summary} />
 
-            <TransactionLedger summary={summary} />
-          </>
-        )}
+          <div className="mb-6 mt-12 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-1">Transaction Ledger</h2>
+              <p className="text-slate-500 text-sm">End-to-end trace of experience assets: execution, attestation, listing, purchase, and cryptographic verification.</p>
+            </div>
+          </div>
+
+          <TransactionLedger summary={summary} />
+        </>
       </div>
     </main>
   )
