@@ -150,7 +150,7 @@ test("loadDotEnv reads .env files without overriding existing shell values", asy
   assert.equal(process.env.PRIVATE_KEY, "0xabc");
 });
 
-test("OpenClaw mini cluster plan uses three bounded Monad testnet agents", () => {
+test("OpenClaw mini cluster plan uses four bounded Monad testnet agents", () => {
   const plan = buildOpenClawMiniClusterPlan({
     openclawRepo: "/tmp/openclaw",
     agentexServiceUrl: "http://127.0.0.1:8787",
@@ -159,13 +159,14 @@ test("OpenClaw mini cluster plan uses three bounded Monad testnet agents", () =>
     tradeBudgetMon: "0.01",
   });
 
-  assert.deepEqual(OPENCLAW_MINI_CLUSTER_AGENTS, ["alpha", "beta", "gamma"]);
+  assert.deepEqual(OPENCLAW_MINI_CLUSTER_AGENTS, ["alpha", "beta", "gamma", "delta"]);
   assert.equal(openClawNamespace("alpha"), "openclaw-alpha");
-  assert.equal(plan.agents.length, 3);
+  assert.equal(plan.agents.length, 4);
   assert.deepEqual(plan.exchange_round, [
     { buyer: "alpha", seller: "beta" },
     { buyer: "beta", seller: "gamma" },
-    { buyer: "gamma", seller: "alpha" },
+    { buyer: "gamma", seller: "delta" },
+    { buyer: "delta", seller: "alpha" },
   ]);
   assert.equal(plan.safety.chain_id, "10143");
   assert.equal(plan.safety.trade_budget_mon, "0.01");
@@ -703,8 +704,8 @@ test("live script writes a preflight artifact from deployment receipts", async (
       ...process.env,
       AGENTEX_RPC_URL: "https://rpc.example",
       AGENTEX_CHAIN_ID: "10143",
-      AGENTEX_REGISTRY_ADDRESS: "0x3333333333333333333333333333333333333333",
-      AGENTEX_DEMO_VENUE_ADDRESS: "0x1111111111111111111111111111111111111111",
+      AGENTEX_REGISTRY_ADDRESS: "",
+      AGENTEX_DEMO_VENUE_ADDRESS: "",
       AGENTEX_DECODER_PRIVATE_KEY: "0xabc",
       AGENTEX_SELLER_PRIVATE_KEY_ALPHA: "0xabc",
       AGENTEX_SELLER_PRIVATE_KEY_BETA: "0xabc",
@@ -727,6 +728,75 @@ test("live script writes a preflight artifact from deployment receipts", async (
   assert.equal(preflight.registry_address, "0x3333333333333333333333333333333333333333");
   assert.equal(preflight.demo_venue_address, "0x1111111111111111111111111111111111111111");
   assert.ok(preflight.next_required.includes("run funded OpenClaw trades"));
+});
+
+test("live setup checker separates manual blockers from automated next steps", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-live-check-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const envPath = path.join(root, ".env");
+  const deploymentPath = path.join(root, "live-v1.json");
+  await writeFile(
+    deploymentPath,
+    stableJson(
+      buildDemoDeployment({
+        chainId: 10143,
+        deployer: "0x68CDad728b463048f640227Fd479E725d5478cB1",
+        decoderAddress: "0x33B62dA218280b6e771F86482D3cC22Acbb0D86F",
+        createdAt: "2026-05-19T00:00:00.000Z",
+        contracts: {
+          demoVenue: {
+            txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+            address: "0x1111111111111111111111111111111111111111",
+            blockNumber: 10,
+          },
+          experienceAccessObligation: {
+            txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+            address: "0x2222222222222222222222222222222222222222",
+            blockNumber: 11,
+          },
+          registry: {
+            txHash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+            address: "0x3333333333333333333333333333333333333333",
+            blockNumber: 12,
+          },
+        },
+      }),
+    ),
+  );
+  await writeFile(
+    envPath,
+    [
+      "AGENTEX_RPC_URL=https://rpc.example",
+      "AGENTEX_CHAIN_ID=10143",
+      "AGENTEX_DEPLOYER_PRIVATE_KEY=0xabc",
+      "AGENTEX_DECODER_ADDRESS=0x33B62dA218280b6e771F86482D3cC22Acbb0D86F",
+      "AGENTEX_DECODER_PRIVATE_KEY=0xabc",
+      "AGENTEX_SELLER_PRIVATE_KEY_ALPHA=0xabc",
+      "AGENTEX_SELLER_PRIVATE_KEY_BETA=0xabc",
+      "AGENTEX_SELLER_PRIVATE_KEY_GAMMA=0xabc",
+      "AGENTEX_SELLER_PRIVATE_KEY_DELTA=0xabc",
+      "PRIVATE_KEY=0xabc",
+      `AGENTEX_EXPERIENCE_KEY=${key}`,
+      "AGENTEX_SERVICE_URL=http://127.0.0.1:8787",
+      `AGENTEX_DEPLOYMENT_PATH=${deploymentPath}`,
+      "",
+    ].join("\n"),
+  );
+
+  const output = execFileSync("node", ["--import", "tsx", "scripts/check-live-setup.ts"], {
+    cwd: path.resolve("."),
+    encoding: "utf8",
+    env: { ...process.env, AGENTEX_ENV_PATH: envPath },
+  });
+  const report = JSON.parse(output) as {
+    status: string;
+    automatic_next: string[];
+    manual_setup: string[];
+  };
+
+  assert.equal(report.status, "ready_for_live_preflight");
+  assert.ok(report.automatic_next.includes("npm run demo:live"));
+  assert.ok(report.manual_setup.includes("fund demo wallets and confirm live spend budget"));
 });
 
 test("market view and runbook exist for the judge path", () => {

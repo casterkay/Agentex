@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { access } from "node:fs/promises";
 import path from "node:path";
 
-export const OPENCLAW_MINI_CLUSTER_AGENTS = ["alpha", "beta", "gamma"] as const;
+export const OPENCLAW_MINI_CLUSTER_AGENTS = ["alpha", "beta", "gamma", "delta"] as const;
 export type OpenClawMiniClusterAgent = (typeof OPENCLAW_MINI_CLUSTER_AGENTS)[number];
 
 export interface OpenClawMiniClusterPlan {
@@ -53,7 +53,8 @@ export function buildOpenClawMiniClusterPlan(input: {
     exchange_round: [
       { buyer: "alpha", seller: "beta" },
       { buyer: "beta", seller: "gamma" },
-      { buyer: "gamma", seller: "alpha" },
+      { buyer: "gamma", seller: "delta" },
+      { buyer: "delta", seller: "alpha" },
     ],
     namespaces: OPENCLAW_MINI_CLUSTER_AGENTS.map((agent) => ({
       agent,
@@ -139,5 +140,5 @@ function hasProviderKey(): boolean {
 }
 
 function agentPort(agent: OpenClawMiniClusterAgent): number {
-  return { alpha: 18789, beta: 18790, gamma: 18791 }[agent];
+  return { alpha: 18789, beta: 18790, gamma: 18791, delta: 18792 }[agent];
 }

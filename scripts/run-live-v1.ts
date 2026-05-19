@@ -6,8 +6,6 @@ import { loadDotEnv, readDemoDeployment, requireEnv, stableJson } from "../src/i
 const required = [
   "AGENTEX_RPC_URL",
   "AGENTEX_CHAIN_ID",
-  "AGENTEX_REGISTRY_ADDRESS",
-  "AGENTEX_DEMO_VENUE_ADDRESS",
   "AGENTEX_DECODER_PRIVATE_KEY",
   "AGENTEX_SELLER_PRIVATE_KEY_ALPHA",
   "AGENTEX_SELLER_PRIVATE_KEY_BETA",
@@ -26,10 +24,12 @@ async function main(): Promise<void> {
   if (deployment.chain_id !== Number(process.env.AGENTEX_CHAIN_ID)) {
     throw new Error(`deployment chain ${deployment.chain_id} does not match AGENTEX_CHAIN_ID`);
   }
-  if (deployment.registry_address !== process.env.AGENTEX_REGISTRY_ADDRESS) {
+  const registryAddress = process.env.AGENTEX_REGISTRY_ADDRESS || deployment.registry_address;
+  const demoVenueAddress = process.env.AGENTEX_DEMO_VENUE_ADDRESS || deployment.demo_venue_address;
+  if (deployment.registry_address !== registryAddress) {
     throw new Error("deployment registry address does not match AGENTEX_REGISTRY_ADDRESS");
   }
-  if (deployment.demo_venue_address !== process.env.AGENTEX_DEMO_VENUE_ADDRESS) {
+  if (deployment.demo_venue_address !== demoVenueAddress) {
     throw new Error("deployment venue address does not match AGENTEX_DEMO_VENUE_ADDRESS");
   }
   await mkdir(outputDir, { recursive: true });
@@ -39,8 +39,8 @@ async function main(): Promise<void> {
     stableJson({
       schema: "agentex.live_preflight.v1",
       chain_id: deployment.chain_id,
-      registry_address: deployment.registry_address,
-      demo_venue_address: deployment.demo_venue_address,
+      registry_address: registryAddress,
+      demo_venue_address: demoVenueAddress,
       experience_access_obligation_address: deployment.experience_access_obligation_address,
       deployment_path: deploymentPath,
       next_required: [

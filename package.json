@@ -10,6 +10,7 @@
     "test": "node --import tsx --test test/agentex.test.ts",
     "typecheck": "tsc --noEmit",
     "contracts:compile": "node --import tsx scripts/compile-contracts.ts",
+    "live:check": "node --import tsx scripts/check-live-setup.ts",
     "deploy:demo": "node --import tsx scripts/deploy-demo-contracts.ts",
     "openclaw:deploy": "node --import tsx scripts/deploy-openclaw-kind.ts",
     "demo:local": "node --import tsx scripts/run-local-v1.ts",
