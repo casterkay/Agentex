@@ -90,13 +90,13 @@ async function readDeploymentStatus(filePath: string): Promise<{ ok: true; value
 
 function deploymentAddressMismatches(deployment: Awaited<ReturnType<typeof readDemoDeployment>>): string[] {
   const mismatches: string[] = [];
-  if (process.env.AGENTEX_CHAIN_ID && Number(process.env.AGENTEX_CHAIN_ID) !== deployment.chain_id) {
+  if (!isUnset(process.env.AGENTEX_CHAIN_ID) && Number(process.env.AGENTEX_CHAIN_ID) !== deployment.chain_id) {
     mismatches.push("AGENTEX_CHAIN_ID does not match deployments/live-v1.json");
   }
-  if (process.env.AGENTEX_REGISTRY_ADDRESS && process.env.AGENTEX_REGISTRY_ADDRESS !== deployment.registry_address) {
+  if (!isUnset(process.env.AGENTEX_REGISTRY_ADDRESS) && process.env.AGENTEX_REGISTRY_ADDRESS !== deployment.registry_address) {
     mismatches.push("AGENTEX_REGISTRY_ADDRESS does not match deployments/live-v1.json");
   }
-  if (process.env.AGENTEX_DEMO_VENUE_ADDRESS && process.env.AGENTEX_DEMO_VENUE_ADDRESS !== deployment.demo_venue_address) {
+  if (!isUnset(process.env.AGENTEX_DEMO_VENUE_ADDRESS) && process.env.AGENTEX_DEMO_VENUE_ADDRESS !== deployment.demo_venue_address) {
     mismatches.push("AGENTEX_DEMO_VENUE_ADDRESS does not match deployments/live-v1.json");
   }
   return mismatches;

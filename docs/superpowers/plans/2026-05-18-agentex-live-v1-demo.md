@@ -20,11 +20,13 @@ Day 3: live deploy, ERC-8004 registration updates, Filecoin Pay and Arkhai recei
 
 Cut line: the judged demo must show real onchain trade TxHashes, real encrypted Filecoin uploads, real accepted registry attestations, and real verified purchase receipts. Sophisticated DEX routing, broad venue support, tokenomics, and profitability scoring are outside this V1 demo.
 
-## Status Audit: 2026-05-19
+## Status Audit: 2026-05-21
 
 Freshly verified in this audit:
 
 ```bash
+export PATH="$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"
+npm install
 npm test
 npm run typecheck
 git diff --check
@@ -32,21 +34,25 @@ npm run contracts:compile
 node --import tsx scripts/run-local-v1.ts
 CARGO_HOME=/private/tmp/agentex-cargo CARGO_TARGET_DIR=/private/tmp/agentex-aomi-target cargo build --manifest-path aomi/agentex-app/Cargo.toml
 npm run live:check
+cd web && npm run lint
+cd web && npm run build
 ```
 
 Current result:
 
-- `npm test`: 20/20 passing.
+- `npm install`: creates the root lockfile and installs the Node 24 toolchain dependencies.
+- `npm test`: 22/22 passing.
 - `npm run typecheck`: passing.
 - `git diff --check`: passing.
 - `npm run contracts:compile`: writes `DemoTradeVenue`, `AgentexRegistry`, and `ExperienceAccessObligation` artifacts.
 - `scripts/run-local-v1.ts`: produces four agents, four experiences, four listings, four purchases, and four ingestions in local mode.
 - `scripts/deploy-demo-contracts.ts`: waits for deployment receipts and writes contract addresses plus block numbers on the next live deployment.
-- `scripts/run-live-v1.ts`: writes `demo/live-output/preflight.json` after env and deployment-address checks.
+- `scripts/run-live-v1.ts`: writes `demo/live-output/preflight.json` only after env checks and complete deployment address/block-number receipts.
 - `scripts/check-live-setup.ts`: separates manual live blockers from automated next commands.
-- live commands read registry and venue addresses from `deployments/live-v1.json` by default; `.env` address fields are optional override checks.
+- live commands read registry and venue addresses from `deployments/live-v1.json` by default; placeholder `.env` address fields are treated as unset optional overrides.
 - `scripts/deploy-openclaw-kind.ts`: plans the same four-agent alpha/beta/gamma/delta ring used by the local demo.
 - `aomi/agentex-app`: local Rust scaffold builds when Cargo cache/target directories are redirected to writable paths.
+- `web`: lint and production build pass; the dashboard labels whether it is using a remote summary, local API, or bundled snapshot.
 
 Still not evidenced:
 

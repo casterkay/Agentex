@@ -2,14 +2,28 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Activity, Cpu, ShieldCheck } from "lucide-react"
 
-export function AgentProfiles({ summary }: { summary: any }) {
+type ExchangeLeg = {
+  buyer: string
+  seller: string
+}
+
+type Summary = {
+  agents?: string[]
+  round?: ExchangeLeg[]
+}
+
+type AgentDisplay = {
+  name: string
+  didSell: boolean
+  didBuy: boolean
+}
+
+export function AgentProfiles({ summary }: { summary?: Summary | null }) {
   if (!summary || !summary.agents) return null
 
-  // Map agents to simple display objects, we can look up their specific activity if needed
-  const agents = summary.agents.map((shortName: string) => {
-    // Find what they bought and sold based on round
-    const sold = summary.round?.find((leg: any) => leg.seller === shortName)
-    const bought = summary.round?.find((leg: any) => leg.buyer === shortName)
+  const agents: AgentDisplay[] = summary.agents.map((shortName) => {
+    const sold = summary.round?.find((leg) => leg.seller === shortName)
+    const bought = summary.round?.find((leg) => leg.buyer === shortName)
 
     return {
       name: shortName,
@@ -20,7 +34,7 @@ export function AgentProfiles({ summary }: { summary: any }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      {agents.map((agent: any) => (
+      {agents.map((agent) => (
         <Card key={agent.name} className="overflow-hidden">
           <CardHeader className="bg-slate-100/50 pb-4 border-b">
             <CardTitle className="flex justify-between items-center text-lg capitalize">

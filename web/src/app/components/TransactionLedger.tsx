@@ -3,7 +3,53 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ArrowRightLeft, CheckCircle2, FileCode, Lock } from "lucide-react"
 
-export function TransactionLedger({ summary }: { summary: any }) {
+type ExchangeLeg = {
+  buyer: string
+  seller: string
+}
+
+type TradeSummary = {
+  pair?: string
+  side?: string
+  fill_price?: string
+  trade_tx_hash?: string
+}
+
+type ExperienceEntry = TradeSummary & {
+  agent?: string
+  experience_id?: string
+  manifest_path?: string
+  encrypted_experience_cid?: string
+  public_trade_summary?: TradeSummary
+}
+
+type ListingEntry = {
+  listing_id?: string
+  encrypted_experience_cid?: string
+  public_trade_summary?: TradeSummary
+}
+
+type AttestationEntry = {
+  attestation_id?: string
+}
+
+type PurchaseEntry = {
+  purchase_id?: string
+  decryption_verification_result?: {
+    status?: string
+  }
+  decryption_verification_status?: string
+}
+
+type Summary = {
+  round?: ExchangeLeg[]
+  experiences?: ExperienceEntry[]
+  attestations?: AttestationEntry[]
+  listings?: ListingEntry[]
+  purchases?: PurchaseEntry[]
+}
+
+export function TransactionLedger({ summary }: { summary?: Summary | null }) {
   if (!summary || !summary.round) return null
 
   return (
@@ -18,7 +64,7 @@ export function TransactionLedger({ summary }: { summary: any }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {summary.round.map((leg: any, index: number) => {
+          {summary.round.map((leg, index) => {
             const experience = summary.experiences?.[index] || {}
             const attestation = summary.attestations?.[index] || {}
             const listing = summary.listings?.[index] || {}
@@ -31,7 +77,7 @@ export function TransactionLedger({ summary }: { summary: any }) {
             const purchaseId = purchase.purchase_id || "pending"
             
             // Trade metadata
-            const item = listing.public_trade_summary || experience.public_trade_summary || experience || {}
+            const item = listing.public_trade_summary || experience.public_trade_summary || experience
             const tradeDesc = item.pair ? `${item.side} ${item.pair} @ ${item.fill_price}` : "No trade data"
             const txHash = item.trade_tx_hash || "No tx hash"
             

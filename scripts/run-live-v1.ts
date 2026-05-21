@@ -21,11 +21,12 @@ async function main(): Promise<void> {
   const deploymentPath = process.env.AGENTEX_DEPLOYMENT_PATH ?? path.join("deployments", "live-v1.json");
   const outputDir = process.env.AGENTEX_LIVE_OUTPUT_DIR ?? path.join("demo", "live-output");
   const deployment = await readDemoDeployment(deploymentPath);
+  assertCompleteDeployment(deployment);
   if (deployment.chain_id !== Number(process.env.AGENTEX_CHAIN_ID)) {
     throw new Error(`deployment chain ${deployment.chain_id} does not match AGENTEX_CHAIN_ID`);
   }
-  const registryAddress = process.env.AGENTEX_REGISTRY_ADDRESS || deployment.registry_address;
-  const demoVenueAddress = process.env.AGENTEX_DEMO_VENUE_ADDRESS || deployment.demo_venue_address;
+  const registryAddress = optionalEnv("AGENTEX_REGISTRY_ADDRESS") ?? deployment.registry_address;
+  const demoVenueAddress = optionalEnv("AGENTEX_DEMO_VENUE_ADDRESS") ?? deployment.demo_venue_address;
   if (deployment.registry_address !== registryAddress) {
     throw new Error("deployment registry address does not match AGENTEX_REGISTRY_ADDRESS");
   }
@@ -70,3 +71,28 @@ main().catch((error: unknown) => {
   process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
 });
+
+function assertCompleteDeployment(deployment: Awaited<ReturnType<typeof readDemoDeployment>>): void {
+  const missing = [
+    "demo_venue_address",
+    "demo_venue_block_number",
+    "experience_access_obligation_address",
+    "experience_access_obligation_block_number",
+    "registry_address",
+    "registry_block_number",
+  ].filter((field) => {
+    const value = deployment[field as keyof typeof deployment];
+    return value === undefined || value === null || value === "";
+  });
+  if (missing.length > 0) {
+    throw new Error(`deployment file is missing contract addresses or receipt blocks: ${missing.join(", ")}`);
+  }
+}
+
+function optionalEnv(name: string): string | undefined {
+  const value = process.env[name];
+  if (!value || value.includes("REPLACE") || value.includes(".invalid")) {
+    return undefined;
+  }
+  return value;
+}

@@ -730,6 +730,49 @@ test("live script writes a preflight artifact from deployment receipts", async (
   assert.ok(preflight.next_required.includes("run funded OpenClaw trades"));
 });
 
+test("live script rejects incomplete deployment receipts", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-incomplete-live-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const deploymentPath = path.join(root, "live-v1.json");
+  const outputDir = path.join(root, "live-output");
+  await writeFile(
+    deploymentPath,
+    stableJson({
+      schema: "agentex.demo_deployment.v1",
+      chain_id: 10143,
+      deployer: "0x68CDad728b463048f640227Fd479E725d5478cB1",
+      decoder_address: "0x33B62dA218280b6e771F86482D3cC22Acbb0D86F",
+      demo_venue_deploy_tx: "0x1111111111111111111111111111111111111111111111111111111111111111",
+      registry_deploy_tx: "0x2222222222222222222222222222222222222222222222222222222222222222",
+      venue_id: "demo-venue-v1",
+      venue_id_hash: "0xfe30c863c8998db570c02e0dc4e525e2e7026a6250b328cc1d70436e1c6fd5ef",
+      created_at: "2026-05-19T00:00:00.000Z",
+    }),
+  );
+
+  assert.throws(
+    () =>
+      execFileSync("node", ["--import", "tsx", "scripts/run-live-v1.ts"], {
+        cwd: path.resolve("."),
+        encoding: "utf8",
+        env: cleanAgentexEnv({
+          AGENTEX_RPC_URL: "https://rpc.example",
+          AGENTEX_CHAIN_ID: "10143",
+          AGENTEX_DECODER_PRIVATE_KEY: "0xabc",
+          AGENTEX_SELLER_PRIVATE_KEY_ALPHA: "0xabc",
+          AGENTEX_SELLER_PRIVATE_KEY_BETA: "0xabc",
+          AGENTEX_SELLER_PRIVATE_KEY_GAMMA: "0xabc",
+          AGENTEX_SELLER_PRIVATE_KEY_DELTA: "0xabc",
+          PRIVATE_KEY: "0xabc",
+          AGENTEX_EXPERIENCE_KEY: key,
+          AGENTEX_DEPLOYMENT_PATH: deploymentPath,
+          AGENTEX_LIVE_OUTPUT_DIR: outputDir,
+        }),
+      }),
+    /deployment file is missing contract addresses/i,
+  );
+});
+
 test("live setup checker separates manual blockers from automated next steps", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "agentex-live-check-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -786,7 +829,7 @@ test("live setup checker separates manual blockers from automated next steps", a
   const output = execFileSync("node", ["--import", "tsx", "scripts/check-live-setup.ts"], {
     cwd: path.resolve("."),
     encoding: "utf8",
-    env: { ...process.env, AGENTEX_ENV_PATH: envPath },
+    env: cleanAgentexEnv({ AGENTEX_ENV_PATH: envPath }),
   });
   const report = JSON.parse(output) as {
     status: string;
@@ -814,4 +857,23 @@ function restoreEnv(name: string, value: string | undefined): void {
     return;
   }
   process.env[name] = value;
+}
+
+function cleanAgentexEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [name, value] of Object.entries(process.env)) {
+    if (
+      name.startsWith("AGENTEX_") ||
+      name === "PRIVATE_KEY" ||
+      name === "OPENCLAW_REPO" ||
+      name === "OPENROUTER_API_KEY" ||
+      name === "ANTHROPIC_API_KEY" ||
+      name === "OPENAI_API_KEY" ||
+      name === "GEMINI_API_KEY"
+    ) {
+      continue;
+    }
+    env[name] = value;
+  }
+  return { ...env, ...overrides };
 }

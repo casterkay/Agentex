@@ -6,6 +6,10 @@ import { TransactionLedger } from "./components/TransactionLedger"
 
 type SummaryPayload = typeof demoSummary
 type SummarySource = "remote" | "local-api" | "snapshot"
+type SummaryResult = {
+  source: SummarySource
+  summary: SummaryPayload
+}
 
 async function fetchSummary(url: string): Promise<SummaryPayload> {
   const res = await fetch(url, {
@@ -19,7 +23,7 @@ async function fetchSummary(url: string): Promise<SummaryPayload> {
   return res.json()
 }
 
-async function getSummaryData() {
+async function getSummaryData(): Promise<SummaryResult> {
   const remoteSummaryUrl = process.env.AGENTEX_SUMMARY_URL?.trim()
 
   if (remoteSummaryUrl) {
@@ -51,8 +55,13 @@ async function getSummaryData() {
 }
 
 export default async function Home() {
-  const { summary } = await getSummaryData()
+  const { source, summary } = await getSummaryData()
   const mode = summary?.mode || "Unknown"
+  const sourceLabel: Record<SummarySource, string> = {
+    remote: "Remote Summary",
+    "local-api": "Local API",
+    snapshot: "Bundled Snapshot",
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 pb-20">
@@ -73,9 +82,9 @@ export default async function Home() {
               </span>
               Market Summary
             </span>
-            {/* <div className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${mode === "live" ? "bg-indigo-100 text-indigo-700 border border-indigo-200" : "bg-slate-100 text-slate-700 border border-slate-200"}`}>
-              {mode} Mode
-            </div> */}
+            <div className="px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+              {sourceLabel[source]} · {mode} Mode
+            </div>
           </div>
         </div>
       </header>

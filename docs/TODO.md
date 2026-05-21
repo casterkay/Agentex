@@ -1,0 +1,20 @@
+- [ ] Implement the live/judged V1 execution path end to end.
+  `npm run demo:live` still stops at preflight; final evidence still needs funded OpenClaw trades, Filecoin uploads, live attestations, Filecoin Pay plus Arkhai settlement, and `demo/live-output/summary.json`.
+
+- [x] Restore root project verifiability.
+  Root dependencies are installed through Node 24, `package-lock.json` exists, and `npm test`, `npm run typecheck`, and `npm run contracts:compile` pass.
+
+- [ ] Replace the TypeScript local registry path with real registry contract submission/status checks.
+  The Solidity registry exists, but the CLI path still uses local attestation state and synthetic transaction hashes.
+
+- [ ] Implement Filecoin Pay as a real wallet/payment flow.
+  Purchases still record a `filecoinPayReference` string rather than executing or verifying a Filecoin Pay path.
+
+- [ ] Produce a complete live deployment receipt.
+  `deployments/live-v1.json` is ignored and the current local copy lacks contract addresses and receipt block numbers. `npm run demo:live` now rejects incomplete receipts, but a fresh live deployment still needs to produce the real receipt.
+
+- [x] Make the web dashboard lint and build clean.
+  Dashboard types were tightened, the summary source is visible, and `cd web && npm run lint` plus `cd web && npm run build` pass.
+
+- [ ] Replace the Aomi scaffold with a real SDK-specific `DynAomiTool` plugin.
+  The Rust crate currently builds as a thin scaffold with tool names and URL construction, not full Aomi SDK tool implementations.
