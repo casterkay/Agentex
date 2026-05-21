@@ -130,9 +130,27 @@ npm run demo:live
 cd web && npm run dev
 ```
 
-`npm run demo:live` currently writes `demo/live-output/preflight.json` after env and deployment
-checks. Final live evidence still requires the funded OpenClaw, Filecoin Pay, ERC-8004, and
-Arkhai/Alkahest steps above to produce `demo/live-output/summary.json`. Open `http://localhost:3000` to inspect the web dashboard, or configure `AGENTEX_SUMMARY_URL` when deploying the app so it can read a public summary endpoint.
+Without a live evidence file, `npm run demo:live` writes `demo/live-output/preflight.json` after env
+and deployment checks. After the funded OpenClaw, Filecoin Pay, ERC-8004, and Arkhai/Alkahest steps
+produce the evidence, write it to `demo/live-input/evidence.json` or set `AGENTEX_LIVE_EVIDENCE_PATH`.
+Then rerun:
+
+```bash
+npm run demo:live
+```
+
+Expected output:
+
+- `status: live_summary_created`
+- `demo/live-output/summary.json`
+
+The evidence file must use `schema: "agentex.live_evidence.v1"` and include exactly four agents,
+the alpha/beta/gamma/delta exchange round, four Filecoin-backed experiences, four accepted registry
+attestations, four listings, four verified purchases with Filecoin Pay and Arkhai references, four
+ERC-8004 registration records, and four ingestion records.
+
+Open `http://localhost:3000` to inspect the web dashboard, or configure `AGENTEX_SUMMARY_URL` when
+deploying the app so it can read a public summary endpoint.
 
 ## Judge Checklist
 

@@ -41,13 +41,13 @@ cd web && npm run build
 Current result:
 
 - `npm install`: creates the root lockfile and installs the Node 24 toolchain dependencies.
-- `npm test`: 22/22 passing.
+- `npm test`: 23/23 passing.
 - `npm run typecheck`: passing.
 - `git diff --check`: passing.
 - `npm run contracts:compile`: writes `DemoTradeVenue`, `AgentexRegistry`, and `ExperienceAccessObligation` artifacts.
 - `scripts/run-local-v1.ts`: produces four agents, four experiences, four listings, four purchases, and four ingestions in local mode.
 - `scripts/deploy-demo-contracts.ts`: waits for deployment receipts and writes contract addresses plus block numbers on the next live deployment.
-- `scripts/run-live-v1.ts`: writes `demo/live-output/preflight.json` only after env checks and complete deployment address/block-number receipts.
+- `scripts/run-live-v1.ts`: writes `demo/live-output/preflight.json` after env checks and complete deployment address/block-number receipts, or `demo/live-output/summary.json` when complete `agentex.live_evidence.v1` evidence is available.
 - `scripts/check-live-setup.ts`: separates manual live blockers from automated next commands.
 - live commands read registry and venue addresses from `deployments/live-v1.json` by default; placeholder `.env` address fields are treated as unset optional overrides.
 - `scripts/deploy-openclaw-kind.ts`: plans the same four-agent alpha/beta/gamma/delta ring used by the local demo.

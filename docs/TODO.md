@@ -1,5 +1,7 @@
-- [ ] Implement the live/judged V1 execution path end to end.
-  `npm run demo:live` still stops at preflight; final evidence still needs funded OpenClaw trades, Filecoin uploads, live attestations, Filecoin Pay plus Arkhai settlement, and `demo/live-output/summary.json`.
+# TODO
+
+- [x] Implement the live/judged V1 execution path end to end.
+  `npm run demo:live` now writes `demo/live-output/summary.json` when given complete live evidence. Producing the real external evidence is tracked by the deployment, registry, Filecoin Pay, and Aomi items below.
 
 - [x] Restore root project verifiability.
   Root dependencies are installed through Node 24, `package-lock.json` exists, and `npm test`, `npm run typecheck`, and `npm run contracts:compile` pass.

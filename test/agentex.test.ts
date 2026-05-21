@@ -730,6 +730,78 @@ test("live script writes a preflight artifact from deployment receipts", async (
   assert.ok(preflight.next_required.includes("run funded OpenClaw trades"));
 });
 
+test("live script assembles judged summary from complete live evidence", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-live-summary-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const deploymentPath = path.join(root, "live-v1.json");
+  const evidencePath = path.join(root, "evidence.json");
+  const outputDir = path.join(root, "live-output");
+  await writeFile(
+    deploymentPath,
+    stableJson(
+      buildDemoDeployment({
+        chainId: 10143,
+        deployer: "0x68CDad728b463048f640227Fd479E725d5478cB1",
+        decoderAddress: "0x33B62dA218280b6e771F86482D3cC22Acbb0D86F",
+        createdAt: "2026-05-19T00:00:00.000Z",
+        contracts: {
+          demoVenue: {
+            txHash: "0x1111111111111111111111111111111111111111111111111111111111111111",
+            address: "0x1111111111111111111111111111111111111111",
+            blockNumber: 10,
+          },
+          experienceAccessObligation: {
+            txHash: "0x2222222222222222222222222222222222222222222222222222222222222222",
+            address: "0x2222222222222222222222222222222222222222",
+            blockNumber: 11,
+          },
+          registry: {
+            txHash: "0x3333333333333333333333333333333333333333333333333333333333333333",
+            address: "0x3333333333333333333333333333333333333333",
+            blockNumber: 12,
+          },
+        },
+      }),
+    ),
+  );
+  await writeFile(evidencePath, stableJson(sampleLiveEvidence()));
+
+  const output = execFileSync("node", ["--import", "tsx", "scripts/run-live-v1.ts"], {
+    cwd: path.resolve("."),
+    encoding: "utf8",
+    env: cleanAgentexEnv({
+      AGENTEX_RPC_URL: "https://rpc.example",
+      AGENTEX_CHAIN_ID: "10143",
+      AGENTEX_DECODER_PRIVATE_KEY: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_ALPHA: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_BETA: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_GAMMA: "0xabc",
+      AGENTEX_SELLER_PRIVATE_KEY_DELTA: "0xabc",
+      PRIVATE_KEY: "0xabc",
+      AGENTEX_EXPERIENCE_KEY: key,
+      AGENTEX_DEPLOYMENT_PATH: deploymentPath,
+      AGENTEX_LIVE_EVIDENCE_PATH: evidencePath,
+      AGENTEX_LIVE_OUTPUT_DIR: outputDir,
+    }),
+  });
+  const body = JSON.parse(output) as { status: string; summary_path: string };
+  const summary = JSON.parse(readFileSync(body.summary_path, "utf8")) as {
+    mode: string;
+    experiences: Array<{ encrypted_experience_cid: string }>;
+    purchases: Array<{ decryption_verification_result: { status: string } }>;
+    registrations: unknown[];
+    deployment: { registry_address: string };
+  };
+
+  assert.equal(body.status, "live_summary_created");
+  assert.equal(summary.mode, "live");
+  assert.equal(summary.experiences.length, 4);
+  assert.equal(summary.experiences.some((experience) => experience.encrypted_experience_cid.startsWith("local:")), false);
+  assert.equal(summary.purchases.every((purchase) => purchase.decryption_verification_result.status === "verified"), true);
+  assert.equal(summary.registrations.length, 4);
+  assert.equal(summary.deployment.registry_address, "0x3333333333333333333333333333333333333333");
+});
+
 test("live script rejects incomplete deployment receipts", async (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "agentex-incomplete-live-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -876,4 +948,69 @@ function cleanAgentexEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     env[name] = value;
   }
   return { ...env, ...overrides };
+}
+
+function sampleLiveEvidence(): Record<string, unknown> {
+  const agents = ["alpha", "beta", "gamma", "delta"];
+  const round = planExchangeRound(agents);
+  return {
+    schema: "agentex.live_evidence.v1",
+    agents,
+    round,
+    experiences: agents.map((agent, index) => ({
+      agent,
+      experience_id: `live-${agent}-experience`,
+      manifest_path: `demo/live-output/${agent}/manifest.json`,
+      encrypted_experience_cid: `bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5f${index}`,
+      filecoin_upload_receipt_path: `demo/live-output/${agent}/filecoin-upload.json`,
+      trade_tx_hash: `0x${String(index + 1).repeat(64)}`,
+      storage_proof_fields: {
+        provider: "filecoin-pin",
+        status: "verified",
+        root_cid: `bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5f${index}`,
+        piece_cid: `baga6ea4seaqexamplepiececid${index}`,
+      },
+    })),
+    attestations: agents.map((agent, index) => ({
+      agent,
+      attestation_id: `0x${String(index + 5).repeat(64)}`,
+      registry_transaction_hash: `0x${String(index + 6).repeat(64)}`,
+      status: "accepted",
+    })),
+    listings: agents.map((agent, index) => ({
+      agent,
+      listing_id: `live-${agent}-listing`,
+      listing_path: `demo/live-output/${agent}/listing.json`,
+      encrypted_experience_cid: `bafybeigdyrzt5sfp7udm7hu76vayqyhlq4w37wkrxktdzznqvyqkucq5f${index}`,
+      price_amount: "5",
+      payment_asset: "USDFC",
+      public_trade_summary: {
+        pair: index % 2 === 0 ? "ETH/USDC" : "SOL/USDC",
+        side: index % 2 === 0 ? "buy" : "sell",
+        fill_price: `${3000 + index * 100}.00`,
+        trade_tx_hash: `0x${String(index + 1).repeat(64)}`,
+      },
+    })),
+    purchases: round.map((leg, index) => ({
+      buyer: leg.buyer,
+      seller: leg.seller,
+      purchase_id: `live-${leg.buyer}-${leg.seller}`,
+      path: `demo/live-output/${leg.seller}/purchase-${leg.buyer}.json`,
+      filecoin_pay_reference: `filecoin-pay-mainnet:${leg.buyer}-${leg.seller}-${index}`,
+      arkhai_escrow_id: `0x${String(index + 9).repeat(64)}`,
+      arkhai_fulfillment_id: `0x${String(index + 10).slice(-1).repeat(64)}`,
+      decryption_verification_result: { status: "verified" },
+    })),
+    registrations: agents.map((agent, index) => ({
+      agent,
+      agent_registry: "eip155:10143:0xregistry",
+      agent_id: String(index + 1),
+      metadata_ref: `erc8004:${agent}`,
+    })),
+    ingestions: round.map((leg) => ({
+      buyer: leg.buyer,
+      seller: leg.seller,
+      path: `demo/agents/${leg.buyer}/.openclaw/imports/agentex/live-${leg.seller}.json`,
+    })),
+  };
 }
