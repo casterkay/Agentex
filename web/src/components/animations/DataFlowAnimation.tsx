@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 
 export const DataFlowAnimation: React.FC = () => {
   const frame = useCurrentFrame();

@@ -1,16 +1,15 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
 import { Player } from "@remotion/player";
+import { useEffect, useRef } from "react";
 
 import "reveal.js/reveal.css";
 import "reveal.js/theme/black.css";
 
 // Dynamic import for reveal.js since it needs browser environment
-import type Reveal from "reveal.js";
 
-import { DataFlowAnimation } from "./animations/DataFlowAnimation";
 import { AttestationAnimation } from "./animations/AttestationAnimation";
+import { DataFlowAnimation } from "./animations/DataFlowAnimation";
 import { MFRLAnimation } from "./animations/MFRLAnimation";
 
 export default function PitchDeck() {
