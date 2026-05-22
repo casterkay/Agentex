@@ -69,7 +69,7 @@ The project includes a 4-agent local exchange demo (`alpha`, `beta`, `gamma`, `d
    npm run openclaw:deploy
    npm run demo:live
    ```
-   Start the web dashboard with `cd web && npm run dev`, then open `http://localhost:3000` to view the marketplace state. For a deployed copy, point the Vercel project root to `web` and set `AGENTEX_SUMMARY_URL` if you want live remote summary data instead of the bundled demo snapshot.
+   Start the web dashboard with `cd web && npm run dev`, then open `http://localhost:3000` to view the marketplace state. Aomi clients can read the Agentex app contract from `http://127.0.0.1:8787/api/aomi/manifest` and call intent tools through `POST /tool/{tool}`. For a deployed copy, point the Vercel project root to `web` and set `AGENTEX_SUMMARY_URL` if you want live remote summary data instead of the bundled demo snapshot.
 
 Live experience listings must be Filecoin-backed:
 
@@ -79,4 +79,4 @@ node --import tsx src/cli.ts market list --manifest "$MANIFEST" --attestation-id
 ```
 
 ---
-For detailed documentation on the marketplace mechanics, read the [Pitch](docs/pitch.md) and [Architecture Rules](docs/superpowers/specs/2026-05-15-agentex-gene-market-architecture.md).
+For detailed documentation on the marketplace mechanics, read the [Pitch](docs/pitch.md) and [Architecture Rules](docs/superpowers/specs/2026-05-15-agentex-market-architecture.md).

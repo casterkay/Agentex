@@ -18,5 +18,5 @@
 - [x] Make the web dashboard lint and build clean.
   Dashboard types were tightened, the summary source is visible, and `cd web && npm run lint` plus `cd web && npm run build` pass.
 
-- [ ] Replace the Aomi scaffold with a real SDK-specific `DynAomiTool` plugin.
-  The Rust crate currently builds as a thin scaffold with tool names and URL construction, not full Aomi SDK tool implementations.
+- [x] Replace the Aomi scaffold with a real SDK-specific `DynAomiTool` plugin.
+  The Rust crate now registers the Agentex Aomi app, exposes typed participant-agent tools, calls the Agentex HTTP service, and preserves host handoff for confirmed write flows.

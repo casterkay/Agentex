@@ -1,8 +1,12 @@
+import { readFile } from "node:fs/promises";
+
+import { AOMI_TOOL_NAMES, buildAomiManifest } from "./aomi.js";
 import { uploadExperienceToFilecoin } from "./filecoin.js";
 import {
   createTradeExperienceAsset,
   inspectOpenclawActivity,
   prepareExperienceIngestion,
+  previewTradeExperienceSale,
 } from "./experience.js";
 import {
   collectExperiencePayment,
@@ -34,6 +38,145 @@ export function planExchangeRound(agents: string[]): Array<{ buyer: string; sell
 
 export async function invokeAgentexTool(name: string, args: Record<string, unknown>): Promise<AgentexToolResult> {
   switch (name) {
+    case "get_market_state":
+      return {
+        status: "ready",
+        aomi_tools: AOMI_TOOL_NAMES,
+        manifest: buildAomiManifest(),
+        round: args.agents === undefined ? undefined : planExchangeRound(arrayArg(args, "agents")),
+        summary: await readOptionalSummary(),
+      };
+    case "inspect_trade_activity":
+      return inspectOpenclawActivity({
+        activityPath: stringArg(args, "activityPath"),
+        memoryPath: optionalStringArg(args, "memoryPath"),
+      });
+    case "prepare_experience_sale":
+      return {
+        ...(await previewTradeExperienceSale({
+        activityPath: stringArg(args, "activityPath"),
+        memoryPath: stringArg(args, "memoryPath"),
+        sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
+        priceAmount: stringArg(args, "priceAmount"),
+        paymentAsset: stringArg(args, "paymentAsset"),
+        outDir: optionalStringArg(args, "outDir"),
+        })),
+      };
+    case "publish_experience_sale": {
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          activity_path: stringArg(args, "activityPath"),
+          next_action: `call ${name} again with confirm:true`,
+        };
+      }
+      const asset = await createTradeExperienceAsset({
+        activityPath: stringArg(args, "activityPath"),
+        memoryPath: stringArg(args, "memoryPath"),
+        sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
+        key: stringArg(args, "key"),
+        outDir: optionalStringArg(args, "outDir"),
+      });
+      const upload =
+        args.live === true
+          ? await uploadExperienceToFilecoin({
+              manifestPath: asset.paths.manifest,
+              privateKey: optionalStringArg(args, "privateKey"),
+              network: networkArg(args),
+            })
+          : undefined;
+      const manifest =
+        args.live === true ? await readJson<ExperienceManifest>(asset.paths.manifest) : asset.manifest;
+      const proof = createExecutionProof({
+        trade: asset.experience,
+        decoderId: stringArg(args, "decoderId"),
+        decoderKey: stringArg(args, "decoderKey"),
+      });
+      const prepared = prepareRegistryAttestation({
+        manifest,
+        executionProof: proof,
+        sellerNonce: stringArg(args, "sellerNonce"),
+        attestationDeadline: stringArg(args, "attestationDeadline"),
+        registryAddress: stringArg(args, "registryAddress"),
+      });
+      const accepted = await submitRegistryAttestation({
+        attestation: prepared.attestation,
+        executionProof: proof,
+      });
+      const listing = await createExperienceListing({
+        manifestPath: asset.paths.manifest,
+        attestationId: accepted.attestation_id,
+        priceAmount: stringArg(args, "priceAmount"),
+        paymentAsset: stringArg(args, "paymentAsset"),
+        mode: args.live === true ? "live" : "local",
+      });
+      return {
+        status: "published",
+        experience_id: asset.experience.experience_id,
+        manifest_path: asset.paths.manifest,
+        ...(upload ? { upload } : {}),
+        proof,
+        attestation: accepted,
+        listing,
+      };
+    }
+    case "evaluate_experience_listing": {
+      const listing = await inspectExperienceListing({ listingPath: stringArg(args, "listingPath") });
+      return {
+        status: "ready",
+        listing,
+        proof_bindings: {
+          attestation_id: listing.attestation_id,
+          encrypted_experience_cid: listing.encrypted_experience_cid,
+          decrypted_experience_hash: listing.decrypted_experience_hash,
+        },
+        next_step_hint: "call purchase_experience_access with confirm:true only after payment and delivery terms are acceptable",
+      };
+    }
+    case "purchase_experience_access":
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          listing_path: stringArg(args, "listingPath"),
+          next_action: `call ${name} again with confirm:true`,
+          SYSTEM_NEXT_ACTION: {
+            type: "settlement_confirmation",
+            preserve_args: args,
+          },
+        };
+      }
+      return createExperiencePurchase({
+        listingPath: stringArg(args, "listingPath"),
+        buyerAgent: agentRefArg(args.buyerAgent, "buyerAgent"),
+        filecoinPayReference: stringArg(args, "filecoinPayReference"),
+        escrowId: optionalStringArg(args, "escrowId"),
+        keyEnvelope: stringArg(args, "keyEnvelope"),
+        deliveryProof: stringArg(args, "deliveryProof"),
+      });
+    case "verify_and_ingest_experience": {
+      const verified = await verifyExperienceDelivery({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
+        key: stringArg(args, "key"),
+      });
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          purchase_receipt_path: stringArg(args, "purchaseReceiptPath"),
+          decryption_verification_result: verified.receipt.decryption_verification_result,
+          next_action: `call ${name} again with confirm:true to write the verified import`,
+        };
+      }
+      const ingestion = await prepareExperienceIngestion({
+        purchaseReceiptPath: verified.path,
+        buyerRepo: stringArg(args, "buyerRepo"),
+        key: stringArg(args, "key"),
+        confirm: true,
+      });
+      return { status: "verified_and_ingested", receipt: verified.receipt, ingestion };
+    }
     case "inspect_openclaw_activity":
       return inspectOpenclawActivity({
         activityPath: stringArg(args, "activityPath"),
@@ -208,6 +351,19 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
     default:
       throw new Error(`unknown tool: ${name}`);
   }
+}
+
+async function readOptionalSummary(): Promise<unknown | undefined> {
+  for (const filePath of ["demo/live-output/summary.json", "demo/local-output/summary.json"]) {
+    try {
+      return JSON.parse(await readFile(filePath, "utf8")) as unknown;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+  return undefined;
 }
 
 function stringArg(args: Record<string, unknown>, name: string): string {

@@ -5,6 +5,7 @@
 !.env.example
 .npm-cache/
 node_modules/
+aomi/agentex-app/target/
 tmp/
 dist/
 out/

@@ -620,6 +620,87 @@ test("Aomi-facing server exposes the spec tool names with confirmation gates", a
   assert.equal(settlementPreviewBody.action, "create_arkhai_escrow");
 });
 
+test("Aomi integration exposes a plugin manifest and intent-shaped service tools", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const server = createAgentexServer();
+  t.after(() => server.close());
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  assert.equal(typeof address, "object");
+  const port = address && typeof address === "object" ? address.port : 0;
+
+  const manifestResponse = await fetch(`http://127.0.0.1:${port}/api/aomi/manifest`);
+  assert.equal(manifestResponse.status, 200);
+  const manifest = (await manifestResponse.json()) as {
+    name: string;
+    preamble: string;
+    tools: Array<{ name: string; mode: string; confirmation_required: boolean }>;
+  };
+  assert.equal(manifest.name, "agentex");
+  assert.match(manifest.preamble, /You are a trading agent using Agentex/);
+  assert.match(manifest.preamble, /Act for the current agent identity supplied by the host/);
+  assert.doesNotMatch(manifest.preamble, /operate Agentex|administer|admin|operator/i);
+  assert.deepEqual(
+    manifest.tools.map((tool) => tool.name),
+    [
+      "get_market_state",
+      "inspect_trade_activity",
+      "prepare_experience_sale",
+      "publish_experience_sale",
+      "evaluate_experience_listing",
+      "purchase_experience_access",
+      "verify_and_ingest_experience",
+      "record_experience_feedback",
+    ],
+  );
+  assert.equal(manifest.tools.find((tool) => tool.name === "publish_experience_sale")?.confirmation_required, true);
+
+  const marketState = await fetch(`http://127.0.0.1:${port}/tool/get_market_state`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ agents: ["alpha", "beta", "gamma", "delta"] }),
+  });
+  assert.equal(marketState.status, 200);
+  const marketStateBody = (await marketState.json()) as {
+    status: string;
+    aomi_tools: string[];
+    round: Array<{ buyer: string; seller: string }>;
+  };
+  assert.equal(marketStateBody.status, "ready");
+  assert.equal(marketStateBody.aomi_tools.includes("purchase_experience_access"), true);
+  assert.deepEqual(marketStateBody.round, [
+    { buyer: "alpha", seller: "beta" },
+    { buyer: "beta", seller: "gamma" },
+    { buyer: "gamma", seller: "delta" },
+    { buyer: "delta", seller: "alpha" },
+  ]);
+
+  const prepared = await fetch(`http://127.0.0.1:${port}/tool/prepare_experience_sale`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      activityPath: fixture.activityPath,
+      memoryPath: fixture.memoryPath,
+      sellerAgent: seller,
+      priceAmount: "5",
+      paymentAsset: "USDFC",
+    }),
+  });
+  assert.equal(prepared.status, 200);
+  const preparedBody = (await prepared.json()) as {
+    status: string;
+    action: string;
+    experience_id: string;
+    public_trade_summary: { trade_tx_hash: string };
+    required_confirmation: string;
+  };
+  assert.equal(preparedBody.status, "prepared");
+  assert.equal(preparedBody.action, "publish_experience_sale");
+  assert.equal(preparedBody.public_trade_summary.trade_tx_hash, sampleTrade().trade_tx_hash);
+  assert.equal(preparedBody.required_confirmation, "call publish_experience_sale with confirm:true");
+});
+
 test("CLI and local demo script emit compact JSON summaries", async () => {
   const output = execFileSync(
     "node",
@@ -918,7 +999,7 @@ test("web dashboard and runbook exist for the judge path", () => {
   const webPage = readFileSync(path.join("web", "src", "app", "page.tsx"), "utf8");
   assert.match(webPage, /AGENTEX_SUMMARY_URL/);
   assert.match(webPage, /Bundled Snapshot/);
-  assert.match(webPage, /Transaction Ledger/);
+  assert.match(webPage, /Cryptographic Ledger/);
   assert.match(readFileSync(path.join("demo", "live-runbook.md"), "utf8"), /npm run demo:live/);
   assert.match(readFileSync(path.join("demo", "live-runbook.md"), "utf8"), /http:\/\/localhost:3000/);
 });

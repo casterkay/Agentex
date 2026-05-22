@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
+import { buildAomiManifest } from "./aomi.js";
 import { stableJson } from "./shared.js";
 import { invokeAgentexTool } from "./tools.js";
 
@@ -16,6 +17,11 @@ export function createAgentexServer(): Server {
       if (request.method === "OPTIONS") {
         response.writeHead(204);
         response.end();
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/aomi/manifest") {
+        sendJson(response, 200, buildAomiManifest());
         return;
       }
 

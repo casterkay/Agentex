@@ -46,6 +46,22 @@ export interface TradeExperienceAsset {
   };
 }
 
+export interface TradeExperienceSalePreview {
+  status: "prepared";
+  action: "publish_experience_sale";
+  experience_id: string;
+  seller_agent: AgentRef;
+  public_trade_summary: TradeExperienceAsset["manifest"]["public_trade_summary"];
+  output_dir: string;
+  listing_terms: {
+    price_amount: string;
+    payment_asset: string;
+  };
+  redaction: TradeExperienceAsset["redaction"];
+  risks: string[];
+  required_confirmation: "call publish_experience_sale with confirm:true";
+}
+
 export async function inspectOpenclawActivity(input: { activityPath: string; memoryPath?: string }): Promise<{
   status: "ready";
   trades: number;
@@ -61,6 +77,42 @@ export async function inspectOpenclawActivity(input: { activityPath: string; mem
   };
 }
 
+export async function previewTradeExperienceSale(input: {
+  activityPath: string;
+  memoryPath: string;
+  sellerAgent: AgentRef;
+  priceAmount: string;
+  paymentAsset: string;
+  outDir?: string;
+}): Promise<TradeExperienceSalePreview> {
+  const experience = await buildTradeExperience({
+    activityPath: input.activityPath,
+    memoryPath: input.memoryPath,
+    sellerAgent: input.sellerAgent,
+  });
+  const redaction = inspectRedaction(experience);
+  const outputDir = path.resolve(input.outDir ?? path.join(path.dirname(input.activityPath), "..", ".agentex", experience.experience_id));
+  return {
+    status: "prepared",
+    action: "publish_experience_sale",
+    experience_id: experience.experience_id,
+    seller_agent: input.sellerAgent,
+    public_trade_summary: publicTradeSummary(experience),
+    output_dir: outputDir,
+    listing_terms: {
+      price_amount: input.priceAmount,
+      payment_asset: input.paymentAsset,
+    },
+    redaction,
+    risks: [
+      "publishing writes encrypted experience artifacts",
+      "live publishing may upload encrypted artifacts to public Filecoin/IPFS storage",
+      "registry attestation and settlement actions may require funded wallets",
+    ],
+    required_confirmation: "call publish_experience_sale with confirm:true",
+  };
+}
+
 export async function createTradeExperienceAsset(input: {
   activityPath: string;
   memoryPath: string;
@@ -68,20 +120,7 @@ export async function createTradeExperienceAsset(input: {
   key: string;
   outDir?: string;
 }): Promise<TradeExperienceAsset> {
-  const activity = await readJson<{ trades?: unknown[] }>(input.activityPath);
-  if (!Array.isArray(activity.trades) || activity.trades.length !== 1) {
-    throw new Error("activity must contain exactly one trade");
-  }
-  const rawTrade = activity.trades[0] as Record<string, unknown>;
-  const memoryPath = path.relative(path.dirname(path.dirname(input.memoryPath)), input.memoryPath);
-  const draft = {
-    schema: "agentex.trade_experience.v1",
-    experience_id: sha256(stableJson({ seller: input.sellerAgent, trade: rawTrade })).slice(0, 32),
-    seller_agent: input.sellerAgent,
-    source_memory_path: memoryPath.startsWith("..") ? input.memoryPath : memoryPath,
-    ...rawTrade,
-  };
-  const experience = tradeExperienceSchema.parse(draft);
+  const experience = await buildTradeExperience(input);
   const redaction = inspectRedaction(experience);
   if (redaction.blocked.length > 0) {
     throw new Error(`redaction failed: ${redaction.blocked.join(", ")}`);
@@ -187,6 +226,26 @@ function publicTradeSummary(experience: TradeExperience): TradeExperienceAsset["
     execution_block_number: experience.execution_block_number,
     execution_timestamp: experience.execution_timestamp,
   };
+}
+
+async function buildTradeExperience(input: {
+  activityPath: string;
+  memoryPath: string;
+  sellerAgent: AgentRef;
+}): Promise<TradeExperience> {
+  const activity = await readJson<{ trades?: unknown[] }>(input.activityPath);
+  if (!Array.isArray(activity.trades) || activity.trades.length !== 1) {
+    throw new Error("activity must contain exactly one trade");
+  }
+  const rawTrade = activity.trades[0] as Record<string, unknown>;
+  const memoryPath = path.relative(path.dirname(path.dirname(input.memoryPath)), input.memoryPath);
+  return tradeExperienceSchema.parse({
+    schema: "agentex.trade_experience.v1",
+    experience_id: sha256(stableJson({ seller: input.sellerAgent, trade: rawTrade })).slice(0, 32),
+    seller_agent: input.sellerAgent,
+    source_memory_path: memoryPath.startsWith("..") ? input.memoryPath : memoryPath,
+    ...rawTrade,
+  });
 }
 
 function inspectRedaction(experience: TradeExperience): TradeExperienceAsset["redaction"] {

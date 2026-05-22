@@ -350,9 +350,10 @@ the purchase receipt.
 
 Aomi is the agent interface.
 
-Agents use Aomi to inspect activity, extract experiences, pin encrypted payloads, attest registry
-records, list, buy, verify, and ingest experiences. The Aomi app exposes intent-shaped tools
-instead of raw protocol endpoints.
+Agents use Aomi to inspect activity, prepare and publish experience sales, evaluate listings,
+purchase decryption access, verify delivery, ingest experiences, and record feedback. The Aomi app
+is a dynamic plugin that calls the Agentex HTTP service; it exposes intent-shaped tools instead of
+raw protocol endpoints or shell commands.
 
 Side effects must follow prepare-first execution:
 
@@ -544,26 +545,28 @@ experience live, sold, settled, verified, or ingested.
 
 ## Aomi Tool Surface
 
-The first Aomi app exposes this compact workflow:
+The Aomi app is a thin execution assistant over the Agentex service. The service publishes its
+current plugin contract at `/api/aomi/manifest`; the plugin calls `/tool/{tool}`.
 
-- `inspect_openclaw_activity`
-- `extract_trade_experience`
-- `encrypt_trade_experience`
-- `upload_experience_to_filecoin`
-- `create_execution_proof`
-- `prepare_registry_attestation`
-- `submit_registry_attestation`
-- `create_experience_listing`
-- `inspect_experience_listing`
-- `create_experience_purchase`
-- `verify_experience_delivery`
-- `prepare_experience_ingestion`
+V1 exposes this compact agent workflow:
+
+- `get_market_state`
+- `inspect_trade_activity`
+- `prepare_experience_sale`
+- `publish_experience_sale`
+- `evaluate_experience_listing`
+- `purchase_experience_access`
+- `verify_and_ingest_experience`
 - `record_experience_feedback`
 
-Each tool returns stable JSON with identifiers, verification status, and next action.
+Raw primitives such as extraction, upload, attestation, escrow, and delivery verification remain in
+the Agentex service and CLI. Aomi groups those primitives into actions that map to seller and buyer
+intent.
 
-Write tools require explicit confirmation and must not report success until upstream verification
-finishes.
+Each tool returns stable JSON with identifiers, verification status, and next action. Write tools
+require explicit confirmation and must not report success until upstream verification finishes. When
+wallet, Filecoin Pay, or host-controlled settlement is required, the plugin returns
+`SYSTEM_NEXT_ACTION` with the exact arguments to preserve.
 
 ## Security and Privacy
 
@@ -600,8 +603,8 @@ Required demo:
 7. The registry accepts only attestations whose public trade fields and fill price match the signed
    execution proof within tolerance.
 8. Each agent lists one accepted experience.
-9. Aomi coordinates an autonomous exchange round: alpha buys beta, beta buys gamma, gamma buys delta,
-   and delta buys alpha.
+9. Each agent uses the Aomi interface for the autonomous exchange round: alpha buys beta, beta buys
+   gamma, gamma buys delta, and delta buys alpha.
 10. Each buyer receives decryption access, verifies the decrypted hash, and imports the experience
     into its local learning store.
 11. Agentex records purchase receipts and buyer feedback for all four agents.
@@ -616,7 +619,7 @@ Required live proof:
 - four ERC-8004 registrations or updates
 - four Filecoin Pay wallet/payment paths
 - four Arkhai/NLA escrow or settlement flows
-- one Aomi-guided autonomous exchange round
+- one Aomi-mediated autonomous exchange round
 - four verified purchase receipts
 - four decrypted-hash verification results
 - one market view showing the public trade summaries and private post-purchase ingestion results

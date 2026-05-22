@@ -53,6 +53,7 @@ export {
 } from "./arkhai.js";
 export { type AgentexToolResult, invokeAgentexTool, planExchangeRound } from "./tools.js";
 export { createAgentexServer } from "./server.js";
+export { AOMI_APP_NAME, AOMI_APP_VERSION, AOMI_PREAMBLE, AOMI_TOOL_NAMES, AOMI_TOOLS, buildAomiManifest } from "./aomi.js";
 export { buildDemoDeployment, readDemoDeployment, requireEnv } from "./contracts.js";
 export {
   OPENCLAW_MINI_CLUSTER_AGENTS,
