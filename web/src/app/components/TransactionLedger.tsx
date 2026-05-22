@@ -1,12 +1,10 @@
 "use client"
 
-"use client"
-
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowRightLeft, CheckCircle2, FileCode, Lock, Shield } from "lucide-react"
 import { motion } from "framer-motion"
+import { ArrowRightLeft, CheckCircle2, FileCode, Lock, Shield } from "lucide-react"
 
 type ExchangeLeg = {
   buyer: string
