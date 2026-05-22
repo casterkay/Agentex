@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "skills": {
+    "aomi-build": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": "aomi-build/SKILL.md",
+      "computedHash": "689601b6b969fce8e59c42e47c9c78834d6d87f6d435ecba6fc10c90ea19c802"
+    },
+    "aomi-transact": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": "aomi-transact/SKILL.md",
+      "computedHash": "998facd5311b129b66325f6dd64197211ef7a5e6f0cfda54ed507036fc25b9ae"
+    },
+    "brian-api": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/brian-api/SKILL.md",
+      "computedHash": "f586a06ef4c34e0de2853c4333b4de2ea6d32ce772c37452bdec3f3ee86cbfb1"
+    },
+    "coinbase-agentkit": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/coinbase-agentkit/SKILL.md",
+      "computedHash": "3c8c67a3e653f3c7bddc420e0336e7d2d834d46bebd8b4bae0a23663fa43f3e0"
+    },
+    "crypto-skill-creator": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/crypto-skill-creator/SKILL.md",
+      "computedHash": "b1a885213453e024f39c6e26b940f951363149e491efc62e27b4cb1c04f672c0"
+    },
+    "eliza": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/eliza/SKILL.md",
+      "computedHash": "785206b54fba86109776af58c58a79414d2be20b719343885a0325d45d863e40"
+    },
+    "goat": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/goat/SKILL.md",
+      "computedHash": "2aad4b5956d2b377caf4b65b5682aebdba9f5eed9d45acfa0225a4cb7b89f3ac"
+    },
+    "manage-aomi-skill": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/manage-aomi-skill/SKILL.md",
+      "computedHash": "482634dff750d7a53003631e88037347e3cc11deab4c3869bbbd26db70cc73fa"
+    },
+    "solana-agent-kit": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/solana-agent-kit/SKILL.md",
+      "computedHash": "edbb8566c4ef78f80fb307b82f42d0e1cb3feb75399e33ccb1d6a9b24bf96472"
+    },
+    "x402": {
+      "source": "aomi-labs/skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/x402/SKILL.md",
+      "computedHash": "2c0df67d0e184b816647a6b98e3ef0ff5640d5d74c41f00dd9823c96dd950291"
+    }
+  }
+}
