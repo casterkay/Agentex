@@ -2,29 +2,29 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { AOMI_TOOL_NAMES, buildAomiManifest } from "./aomi.js";
+import { listArkhaiEscrows } from "./arkhai.js";
+import {
+    createTradeExperienceAsset,
+    inspectOpenclawActivity,
+    prepareExperienceIngestion,
+    previewTradeExperienceSale,
+    type AomiTradeContext,
+} from "./experience.js";
 import { uploadExperienceToFilecoin } from "./filecoin.js";
 import {
-  createTradeExperienceAsset,
-  type AomiTradeContext,
-  inspectOpenclawActivity,
-  prepareExperienceIngestion,
-  previewTradeExperienceSale,
-} from "./experience.js";
-import {
-  collectExperiencePayment,
-  createExperienceListing,
-  createExperiencePurchase,
-  inspectExperienceListing,
-  recordExperienceFeedback,
-  requestExperienceArbitration,
-  submitExperienceFulfillment,
-  verifyExperienceDelivery,
+    collectExperiencePayment,
+    createExperienceListing,
+    createExperiencePurchase,
+    inspectExperienceListing,
+    recordExperienceFeedback,
+    requestExperienceArbitration,
+    submitExperienceFulfillment,
+    verifyExperienceDelivery,
 } from "./market.js";
 import { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
+import { publicTradeSummarySchema, type ExecutionProof, type ExperienceManifest, type TradeExperience } from "./schemas.js";
+import { readJson, stableJson, type AgentRef } from "./shared.js";
 import { createExecutionProof } from "./venue.js";
-import { type AgentRef, readJson, stableJson } from "./shared.js";
-import { type ExecutionProof, type ExperienceManifest, type TradeExperience } from "./schemas.js";
-import { listArkhaiEscrows } from "./arkhai.js";
 
 export type AgentexToolResult = Record<string, unknown>;
 
@@ -50,16 +50,25 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         summary: await readOptionalSummary(),
       };
     case "prepare_whitelisted_trade":
+      {
+        const signingRequest = {
+          chainId: numberArg(args, "chainId"),
+          whitelistedVenueId: stringArg(args, "whitelistedVenueId"),
+          pair: stringArg(args, "pair"),
+          side: sideArg(args),
+          size: stringArg(args, "size"),
+          ...(args.maxSlippageBps === undefined ? {} : { maxSlippageBps: numberArg(args, "maxSlippageBps") }),
+        };
       return {
         status: "prepared",
         action: "record_trade_execution",
         venue_intent: {
-          chain_id: numberArg(args, "chainId"),
-          whitelisted_venue_id: stringArg(args, "whitelistedVenueId"),
-          pair: stringArg(args, "pair"),
-          side: sideArg(args),
-          size: stringArg(args, "size"),
-          max_slippage_bps: args.maxSlippageBps === undefined ? undefined : numberArg(args, "maxSlippageBps"),
+          chain_id: signingRequest.chainId,
+          whitelisted_venue_id: signingRequest.whitelistedVenueId,
+          pair: signingRequest.pair,
+          side: signingRequest.side,
+          size: signingRequest.size,
+          max_slippage_bps: signingRequest.maxSlippageBps,
         },
         transaction_pipeline: {
           owner: "aomi",
@@ -70,7 +79,12 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
           expected_fields: ["trade_tx_hash", "venue", "pair", "side", "size", "fill_price"],
           recorder_tool: "record_trade_execution",
         },
+        SYSTEM_NEXT_ACTION: {
+          type: "aomi_sign_transaction",
+          preserve_args: sanitizePreserveArgs(signingRequest),
+        },
       };
+      }
     case "record_trade_execution": {
       if (args.confirm !== true) {
         return {
@@ -81,7 +95,7 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
       }
       const tradeContext = tradeContextArg(args);
       const trade = tradeContext.trade;
-      stringField(trade, "trade_tx_hash");
+      const publicTradeSummary = publicTradeSummarySchema.parse(publicTradeSummaryArg(trade));
       return {
         status: "recorded",
         action: "prepare_experience_sale",
@@ -91,7 +105,7 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
           session_id: tradeContext.source.sessionId,
           ...(tradeContext.source.threadId ? { thread_id: tradeContext.source.threadId } : {}),
         },
-        public_trade_summary: publicTradeSummaryArg(trade),
+        public_trade_summary: publicTradeSummary,
       };
     }
     case "inspect_trade_activity":
@@ -134,10 +148,18 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
           : undefined;
       const manifest =
         args.live === true ? await readJson<ExperienceManifest>(asset.paths.manifest) : asset.manifest;
+      const decoderId = optionalStringArg(args, "decoderId") ?? process.env.AGENTEX_DECODER_ADDRESS;
+      if (!decoderId) {
+        throw new Error("decoder id not configured");
+      }
+      const decoderKey = optionalStringArg(args, "decoderKey") ?? process.env.AGENTEX_DECODER_PRIVATE_KEY;
+      if (!decoderKey) {
+        throw new Error("decoder signing key not configured");
+      }
       const proof = createExecutionProof({
         trade: asset.experience,
-        decoderId: optionalStringArg(args, "decoderId") ?? process.env.AGENTEX_DECODER_ADDRESS ?? "demo-decoder",
-        decoderKey: optionalStringArg(args, "decoderKey") ?? process.env.AGENTEX_DECODER_PRIVATE_KEY ?? "local-decoder-key",
+        decoderId,
+        decoderKey,
       });
       const prepared = prepareRegistryAttestation({
         manifest,
@@ -189,7 +211,7 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
           next_action: `call ${name} again with confirm:true`,
           SYSTEM_NEXT_ACTION: {
             type: "settlement_confirmation",
-            preserve_args: args,
+            preserve_args: sanitizePreserveArgs(args),
           },
         };
       }
@@ -564,6 +586,27 @@ function publicTradeSummaryArg(trade: Record<string, unknown>): Record<string, u
     execution_block_number: trade.execution_block_number,
     execution_timestamp: trade.execution_timestamp,
   };
+}
+
+function sanitizePreserveArgs(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizePreserveArgs(entry));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [
+      key,
+      isSensitiveArgKey(key) ? "[REDACTED]" : sanitizePreserveArgs(entry),
+    ]),
+  );
+}
+
+function isSensitiveArgKey(key: string): boolean {
+  return ["key", "keyenvelope", "privatekey", "decoderkey", "apikey", "token", "secret"].includes(
+    key.toLowerCase(),
+  );
 }
 
 function networkArg(args: Record<string, unknown>): "mainnet" | "calibration" | undefined {

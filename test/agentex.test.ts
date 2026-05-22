@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
-import { createServer } from "node:http";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -11,36 +11,37 @@ import { promisify } from "node:util";
 import { compileContracts } from "../scripts/compile-contracts.js";
 import { loadDotEnv } from "../src/env.js";
 import {
-  applyFilecoinUploadResult,
-  buildDemoDeployment,
-  createAgentexServer,
-  createExecutionProof,
-  createExperienceListing,
-  createExperiencePurchase,
-  createLocalArkhaiSettlementClient,
-  createTradeExperienceAsset,
-  inspectExperienceListing,
-  listArkhaiEscrows,
-  planExchangeRound,
-  prepareExperienceIngestion,
-  prepareFilecoinUploadBundle,
-  prepareRegistryAttestation,
-  readJson,
-  recordExperienceFeedback,
-  requestExperienceArbitration,
-  sha256,
-  stableJson,
-  submitExperienceFulfillment,
-  submitRegistryAttestation,
-  tradeExperienceSchema,
-  verifyExecutionProof,
-  verifyExperienceDelivery,
-  type ExperienceManifest,
+    applyFilecoinUploadResult,
+    buildDemoDeployment,
+    createAgentexServer,
+    createExecutionProof,
+    createExperienceListing,
+    createExperiencePurchase,
+    createLocalArkhaiSettlementClient,
+    createTradeExperienceAsset,
+    inspectExperienceListing,
+    invokeAgentexTool,
+    listArkhaiEscrows,
+    planExchangeRound,
+    prepareExperienceIngestion,
+    prepareFilecoinUploadBundle,
+    prepareRegistryAttestation,
+    readJson,
+    recordExperienceFeedback,
+    requestExperienceArbitration,
+    sha256,
+    stableJson,
+    submitExperienceFulfillment,
+    submitRegistryAttestation,
+    tradeExperienceSchema,
+    verifyExecutionProof,
+    verifyExperienceDelivery,
+    type ExperienceManifest,
 } from "../src/index.js";
 import {
-  OPENCLAW_MINI_CLUSTER_AGENTS,
-  buildOpenClawMiniClusterPlan,
-  openClawNamespace,
+    OPENCLAW_MINI_CLUSTER_AGENTS,
+    buildOpenClawMiniClusterPlan,
+    openClawNamespace,
 } from "../src/openclaw.js";
 
 const key = "0123456789abcdef0123456789abcdef";
@@ -734,6 +735,97 @@ test("Aomi integration exposes a plugin manifest and intent-shaped service tools
   assert.equal(preparedBody.action, "publish_experience_sale");
   assert.equal(preparedBody.public_trade_summary.trade_tx_hash, sampleTrade().trade_tx_hash);
   assert.equal(preparedBody.required_confirmation, "call publish_experience_sale with confirm:true");
+});
+
+test("Aomi integration returns explicit signing handoff and rejects incomplete recorded trades", async () => {
+  const preparedTrade = await invokeAgentexTool("prepare_whitelisted_trade", {
+    chainId: 8453,
+    whitelistedVenueId: "demo-venue-v1",
+    pair: "ETH/USDC",
+    side: "buy",
+    size: "1.25",
+  });
+
+  assert.equal(preparedTrade.status, "prepared");
+  assert.deepEqual(preparedTrade.SYSTEM_NEXT_ACTION, {
+    type: "aomi_sign_transaction",
+    preserve_args: {
+      chainId: 8453,
+      whitelistedVenueId: "demo-venue-v1",
+      pair: "ETH/USDC",
+      side: "buy",
+      size: "1.25",
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      invokeAgentexTool("record_trade_execution", {
+        confirm: true,
+        tradeContext: {
+          source: { app: "agentex", sessionId: "session-alpha" },
+          trade: { trade_tx_hash: sampleTrade().trade_tx_hash },
+        },
+      }),
+    /chain_id/i,
+  );
+});
+
+test("publish_experience_sale requires an explicit decoder signing key", async (t) => {
+  const fixture = await fixtureActivity();
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+
+  const previousDecoderKey = process.env.AGENTEX_DECODER_PRIVATE_KEY;
+  const previousDecoderAddress = process.env.AGENTEX_DECODER_ADDRESS;
+  delete process.env.AGENTEX_DECODER_PRIVATE_KEY;
+  delete process.env.AGENTEX_DECODER_ADDRESS;
+  t.after(() => {
+    restoreEnv("AGENTEX_DECODER_PRIVATE_KEY", previousDecoderKey);
+    restoreEnv("AGENTEX_DECODER_ADDRESS", previousDecoderAddress);
+  });
+
+  await assert.rejects(
+    () =>
+      invokeAgentexTool("publish_experience_sale", {
+        confirm: true,
+        tradeContext: {
+          source: { app: "agentex", sessionId: "session-alpha" },
+          trade: sampleTrade(),
+        },
+        sellerAgent: seller,
+        key,
+        decoderId: "decoder-1",
+        sellerNonce: "seller-nonce-1",
+        attestationDeadline: "2026-05-19T00:00:00.000Z",
+        registryAddress: "0x3333333333333333333333333333333333333333",
+        priceAmount: "5",
+        paymentAsset: "USDFC",
+        outDir: fixture.root,
+      }),
+    /decoder signing key/i,
+  );
+});
+
+test("purchase confirmation handoff redacts buyer secret material", async () => {
+  const preview = await invokeAgentexTool("purchase_experience_access", {
+    listingPath: "listing.json",
+    buyerAgent: buyer,
+    filecoinPayReference: "payref-1",
+    keyEnvelope: "buyer-secret-envelope",
+    deliveryProof: "delivery-proof",
+  });
+
+  assert.equal(preview.status, "confirmation_required");
+  assert.deepEqual(preview.SYSTEM_NEXT_ACTION, {
+    type: "settlement_confirmation",
+    preserve_args: {
+      listingPath: "listing.json",
+      buyerAgent: buyer,
+      filecoinPayReference: "payref-1",
+      keyEnvelope: "[REDACTED]",
+      deliveryProof: "delivery-proof",
+    },
+  });
 });
 
 test("CLI and local demo script emit compact JSON summaries", async () => {
