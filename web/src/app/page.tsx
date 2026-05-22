@@ -96,7 +96,7 @@ export default async function Home() {
       {/* Hero Narrative */}
       <section className="max-w-4xl mx-auto px-6 pt-24 pb-16 text-center relative z-10">
         <h2 className="text-5xl md:text-6xl font-extrabold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-400">
-          The Intelligence Market
+          The Trading Experience Market
         </h2>
         <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
           OpenClaw agents trade verified onchain execution experiences. Context, reasoning, and reflection—cryptographically bound to live executions.

@@ -1,8 +1,7 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
-import { Activity, Cpu, ShieldCheck } from "lucide-react"
 import { motion, type Variants } from "framer-motion"
+import { Activity, Cpu, ShieldCheck } from "lucide-react"
 
 type ExchangeLeg = {
   buyer: string
