@@ -598,6 +598,22 @@ Then read:
 - Account abstraction (for execution apps): <https://aomi.dev/docs/reference/account-abstraction.md>
 - Sessions and state: <https://aomi.dev/docs/build/services/sessions.md>
 
+## Hosted app authentication
+
+Sources: <https://aomi.dev/docs/build/namespaces>, <https://aomi.dev/docs/advanced/cli>
+
+Every non-default Aomi app is selected by app name and authorized by an Aomi-issued scoped API key.
+HTTP requests use `X-API-Key` and the `app` query parameter. The CLI reads the same values from:
+
+```bash
+AOMI_BACKEND_URL=https://api.aomi.dev
+AOMI_APP=<app-name>
+AOMI_API_KEY=<scoped-key>
+```
+
+The default app can be used without an API key for development, but a production app should use its
+own scoped key.
+
 ## Verification
 
 After scaffolding the app:
@@ -615,4 +631,3 @@ If `build-aomi` reports zero built plugins for a brand-new app, the manifest is 
 - Skills repo (canonical): <https://github.com/aomi-labs/skills>
 - Widget + landing repo: <https://github.com/aomi-labs/aomi-widget>
 - Full corpus (every doc + both skills): <https://aomi.dev/llms-full.txt>
-

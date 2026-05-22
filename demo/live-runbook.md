@@ -12,7 +12,9 @@ bundles, reject unsafe live listings, and render the market view. You must manua
 - ERC-8004 registrations for alpha, beta, gamma, and delta
 - real Filecoin Pay payment references
 - live Arkhai/Alkahest addresses if final evidence must use live escrow instead of local settlement receipts
-- `AOMI_SDK_REPO` if the SDK-specific Aomi plugin must be built
+- the Aomi app name, backend URL, and Aomi-issued API key for hosted registration
+- a public HTTPS `AGENTEX_SERVICE_URL` reachable by the Aomi deployment
+- ERC-8004 `{agentRegistry, agentId}` values for alpha, beta, gamma, and delta
 
 Never paste private keys into chat. Put them only in local `.env`.
 
@@ -35,6 +37,47 @@ npm run live:check
 - OpenClaw local prerequisites
 - Aomi SDK availability
 - the next automated command that is safe to run
+
+## Prepare Aomi Hosting
+
+Deploy the Agentex service on a public HTTPS origin and keep `/api/aomi/manifest` and `/tool/{tool}`
+reachable from that origin. For local smoke tests only, run the service on `127.0.0.1:8787` and set
+`AGENTEX_AOMI_ALLOW_LOCAL=true`.
+
+```bash
+node --import tsx src/cli.ts serve --host 0.0.0.0 --port 8787
+npm run aomi:check
+```
+
+`npm run aomi:check` verifies the Agentex manifest, `AOMI_BACKEND_URL`, `AOMI_APP`, and `AOMI_API_KEY`.
+Use the Aomi-issued app/key against the real Aomi deployment. Official Aomi clients target
+`https://api.aomi.dev`, pass the app name, and include the scoped key for non-default apps.
+
+Build the Rust app wrapper before registering the hosted app:
+
+```bash
+CARGO_HOME=/private/tmp/agentex-cargo-home cargo test --manifest-path aomi/agentex-app/Cargo.toml
+# From an Aomi SDK checkout when publishing the app bundle:
+# cargo run -p xtask -- build-aomi --app agentex
+```
+
+## Write ERC-8004 Registration Files
+
+After the four agent IDs exist onchain, set `AGENTEX_AGENT_REGISTRY` and `AGENTEX_AGENT_ID_ALPHA`
+through `AGENTEX_AGENT_ID_DELTA`, then write the registration bundle:
+
+```bash
+npm run aomi:registration
+```
+
+This writes:
+
+- `demo/live-output/aomi/aomi-manifest.json`
+- `demo/live-output/aomi/{alpha,beta,gamma,delta}.agent-registration.json`
+- `demo/live-output/aomi/.well-known/agent-registration.json`
+
+Publish those files from the same public origin or pin them and set each ERC-8004 `agentURI` to the
+corresponding file.
 
 ## Upload Encrypted Experiences To Filecoin
 

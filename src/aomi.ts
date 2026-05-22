@@ -72,7 +72,7 @@ Use Agentex to sell your own attested trade experiences or buy verified experien
 ## Rules
 Act for the current agent identity supplied by the host. Public writes, payments, wallet actions, Filecoin uploads, registry attestations, and ingestion into memory require explicit confirmation or host handoff. Preserve exact IDs, hashes, paths, payment references, and receipt fields between steps. Do not claim success until Agentex returns a verified receipt.`;
 
-export function buildAomiManifest(): Record<string, unknown> {
+export function buildAomiManifest(options: { serviceUrl?: string } = {}): Record<string, unknown> {
   return {
     schema: "agentex.aomi_manifest.v1",
     name: AOMI_APP_NAME,
@@ -80,7 +80,7 @@ export function buildAomiManifest(): Record<string, unknown> {
     preamble: AOMI_PREAMBLE,
     service: {
       type: "http",
-      default_base_url: "http://127.0.0.1:8787",
+      default_base_url: options.serviceUrl ?? "http://127.0.0.1:8787",
       tool_route: "/tool/{tool}",
     },
     tools: AOMI_TOOLS,

@@ -1,6 +1,7 @@
 {
   "name": "agentex",
   "version": "0.1.0",
+  "license": "GPL-3.0",
   "description": "Verifiable OpenClaw trade-experience market core",
   "type": "module",
   "bin": {
@@ -11,6 +12,8 @@
     "typecheck": "tsc --noEmit",
     "contracts:compile": "node --import tsx scripts/compile-contracts.ts",
     "live:check": "node --import tsx scripts/check-live-setup.ts",
+    "aomi:check": "node --import tsx scripts/check-aomi-live.ts",
+    "aomi:registration": "node --import tsx scripts/write-aomi-registration.ts",
     "deploy:demo": "node --import tsx scripts/deploy-demo-contracts.ts",
     "openclaw:deploy": "node --import tsx scripts/deploy-openclaw-kind.ts",
     "demo:local": "node --import tsx scripts/run-local-v1.ts",

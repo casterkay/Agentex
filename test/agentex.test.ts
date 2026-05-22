@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { promisify } from "node:util";
 
 import { compileContracts } from "../scripts/compile-contracts.js";
 import { loadDotEnv } from "../src/env.js";
@@ -44,6 +45,7 @@ import {
 const key = "0123456789abcdef0123456789abcdef";
 const seller = { agentRegistry: "eip155:8453:0xregistry", agentId: "1" };
 const buyer = { agentRegistry: "eip155:8453:0xregistry", agentId: "2" };
+const execFileAsync = promisify(execFile);
 
 async function fixtureActivity(): Promise<{ root: string; activityPath: string; memoryPath: string }> {
   const root = mkdtempSync(path.join(tmpdir(), "agentex-v1-"));
@@ -995,6 +997,112 @@ test("live setup checker separates manual blockers from automated next steps", a
   assert.ok(report.manual_setup.includes("fund demo wallets and confirm live spend budget"));
 });
 
+test("Aomi live checker blocks localhost unless explicitly allowed", () => {
+  const output = execFileSync("node", ["--import", "tsx", "scripts/check-aomi-live.ts"], {
+    cwd: path.resolve("."),
+    encoding: "utf8",
+    env: cleanAgentexEnv({
+      AGENTEX_SERVICE_URL: "http://127.0.0.1:8787",
+      AOMI_BACKEND_URL: "https://api.aomi.dev",
+      AOMI_APP: "agentex",
+      AOMI_API_KEY: "sk-test",
+    }),
+  });
+  const report = JSON.parse(output) as {
+    schema: string;
+    status: string;
+    checks: { service_url: { status: string; detail: string } };
+    manual_setup: string[];
+  };
+
+  assert.equal(report.schema, "agentex.aomi_live_setup_check.v1");
+  assert.equal(report.status, "blocked");
+  assert.equal(report.checks.service_url.status, "manual_required");
+  assert.match(report.checks.service_url.detail, /public https/i);
+  assert.ok(report.manual_setup.some((step) => step.includes("AGENTEX_SERVICE_URL")));
+});
+
+test("Aomi live checker verifies the Agentex manifest when local service access is allowed", async (t) => {
+  const server = createAgentexServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const address = server.address();
+  if (typeof address !== "object" || address === null) {
+    throw new Error("expected server to listen on an address info object");
+  }
+
+  const { stdout } = await execFileAsync("node", ["--import", "tsx", "scripts/check-aomi-live.ts"], {
+    cwd: path.resolve("."),
+    env: cleanAgentexEnv({
+      AGENTEX_SERVICE_URL: `http://127.0.0.1:${address.port}`,
+      AGENTEX_AOMI_ALLOW_LOCAL: "true",
+      AOMI_BACKEND_URL: "https://api.aomi.dev",
+      AOMI_APP: "agentex",
+      AOMI_API_KEY: "sk-test",
+    }),
+  });
+  const report = JSON.parse(stdout) as {
+    status: string;
+    checks: {
+      service_url: { status: string };
+      manifest: { status: string; tools: string[] };
+      aomi_auth: { status: string };
+    };
+    automatic_next: string[];
+  };
+
+  assert.equal(report.status, "ready_for_aomi_registration");
+  assert.equal(report.checks.service_url.status, "ok");
+  assert.equal(report.checks.manifest.status, "ok");
+  assert.equal(report.checks.manifest.tools.includes("purchase_experience_access"), true);
+  assert.equal(report.checks.aomi_auth.status, "ok");
+  assert.ok(report.automatic_next.includes("npm run aomi:registration"));
+});
+
+test("Aomi registration writer emits ERC-8004 files for the four live agents", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-aomi-registration-"));
+  const outputDir = path.join(root, "aomi-registration");
+  const output = execFileSync("node", ["--import", "tsx", "scripts/write-aomi-registration.ts"], {
+    cwd: path.resolve("."),
+    encoding: "utf8",
+    env: cleanAgentexEnv({
+      AGENTEX_SERVICE_URL: "https://agentex.example.com",
+      AOMI_BACKEND_URL: "https://api.aomi.dev",
+      AOMI_APP: "agentex",
+      AGENTEX_AOMI_REGISTRATION_DIR: outputDir,
+      AGENTEX_AGENT_REGISTRY: "eip155:8453:0x1234567890123456789012345678901234567890",
+      AGENTEX_AGENT_ID_ALPHA: "11",
+      AGENTEX_AGENT_ID_BETA: "12",
+      AGENTEX_AGENT_ID_GAMMA: "13",
+      AGENTEX_AGENT_ID_DELTA: "14",
+    }),
+  });
+  const report = JSON.parse(output) as {
+    status: string;
+    manifest_path: string;
+    aggregate_path: string;
+    registrations: Array<{ agent: string; path: string; agent_uri: string }>;
+  };
+  const aggregate = JSON.parse(readFileSync(report.aggregate_path, "utf8")) as { registrations: unknown[] };
+  const alpha = JSON.parse(readFileSync(report.registrations[0]?.path ?? "", "utf8")) as {
+    type: string;
+    name: string;
+    services: Array<{ name: string; endpoint: string }>;
+    registrations: Array<{ agentRegistry: string; agentId: string }>;
+  };
+
+  assert.equal(report.status, "registration_files_written");
+  assert.equal(report.registrations.length, 4);
+  assert.equal(report.manifest_path, path.join(outputDir, "aomi-manifest.json"));
+  assert.equal(aggregate.registrations.length, 4);
+  assert.equal(alpha.type, "https://eips.ethereum.org/EIPS/eip-8004#registration-v1");
+  assert.equal(alpha.name, "agentex-alpha");
+  assert.equal(alpha.registrations[0]?.agentId, "11");
+  assert.ok(alpha.services.some((service) => service.name === "Aomi" && service.endpoint === "https://api.aomi.dev/api/chat?app=agentex"));
+  assert.ok(alpha.services.some((service) => service.name === "AgentexAomiManifest" && service.endpoint === "https://agentex.example.com/api/aomi/manifest"));
+  assert.ok(report.registrations.every((registration) => registration.agent_uri.startsWith("https://agentex.example.com/")));
+});
+
 test("web dashboard and runbook exist for the judge path", () => {
   const webPage = readFileSync(path.join("web", "src", "app", "page.tsx"), "utf8");
   assert.match(webPage, /AGENTEX_SUMMARY_URL/);
@@ -1022,7 +1130,8 @@ function cleanAgentexEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
       name === "OPENROUTER_API_KEY" ||
       name === "ANTHROPIC_API_KEY" ||
       name === "OPENAI_API_KEY" ||
-      name === "GEMINI_API_KEY"
+      name === "GEMINI_API_KEY" ||
+      name.startsWith("AOMI_")
     ) {
       continue;
     }
