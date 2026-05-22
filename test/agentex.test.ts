@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -224,6 +225,35 @@ test("createTradeExperienceAsset extracts exactly one encrypted trade experience
   const encryptedText = await readFile(asset.paths.encryptedExperience, "utf8");
   assert.equal(encryptedText.includes("pre-trade reasoning"), false);
   assert.match(asset.manifest.encrypted_experience_cid, /^local:[a-f0-9]{64}$/);
+});
+
+test("createTradeExperienceAsset accepts Aomi session trade context without OpenClaw paths", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-aomi-context-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const asset = await createTradeExperienceAsset({
+    tradeContext: {
+      source: {
+        app: "agentex",
+        sessionId: "session-alpha",
+        threadId: "thread-alpha",
+      },
+      trade: sampleTrade(),
+    },
+    sellerAgent: seller,
+    key,
+    outDir: root,
+  });
+
+  assert.equal(asset.experience.schema, "agentex.trade_experience.v1");
+  assert.equal(asset.experience.source_memory_path, undefined);
+  assert.deepEqual(asset.experience.source_session, {
+    runtime: "aomi",
+    app: "agentex",
+    session_id: "session-alpha",
+    thread_id: "thread-alpha",
+  });
+  assert.equal(asset.manifest.public_trade_summary.trade_tx_hash, sampleTrade().trade_tx_hash);
 });
 
 test("createTradeExperienceAsset fails closed on multi-trade activity or denied material", async (t) => {
@@ -641,24 +671,25 @@ test("Aomi integration exposes a plugin manifest and intent-shaped service tools
   };
   assert.equal(manifest.name, "agentex");
   assert.match(manifest.preamble, /You are a trading agent using Agentex/);
-  assert.match(manifest.preamble, /Act for the current agent identity supplied by the host/);
+  assert.match(manifest.preamble, /Act for the current Aomi session identity supplied by the host/);
   assert.doesNotMatch(manifest.preamble, /operate Agentex|administer|admin|operator/i);
   assert.deepEqual(
     manifest.tools.map((tool) => tool.name),
     [
-      "get_market_state",
-      "inspect_trade_activity",
+      "get_agent_state",
+      "prepare_whitelisted_trade",
+      "record_trade_execution",
       "prepare_experience_sale",
       "publish_experience_sale",
       "evaluate_experience_listing",
       "purchase_experience_access",
-      "verify_and_ingest_experience",
+      "verify_and_store_experience",
       "record_experience_feedback",
     ],
   );
   assert.equal(manifest.tools.find((tool) => tool.name === "publish_experience_sale")?.confirmation_required, true);
 
-  const marketState = await fetch(`http://127.0.0.1:${port}/tool/get_market_state`, {
+  const marketState = await fetch(`http://127.0.0.1:${port}/tool/get_agent_state`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ agents: ["alpha", "beta", "gamma", "delta"] }),
@@ -682,8 +713,10 @@ test("Aomi integration exposes a plugin manifest and intent-shaped service tools
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      activityPath: fixture.activityPath,
-      memoryPath: fixture.memoryPath,
+      tradeContext: {
+        source: { app: "agentex", sessionId: "session-alpha" },
+        trade: sampleTrade(),
+      },
       sellerAgent: seller,
       priceAmount: "5",
       paymentAsset: "USDFC",
@@ -810,7 +843,7 @@ test("live script writes a preflight artifact from deployment receipts", async (
   assert.equal(body.status, "ready_for_live_execution");
   assert.equal(preflight.registry_address, "0x3333333333333333333333333333333333333333");
   assert.equal(preflight.demo_venue_address, "0x1111111111111111111111111111111111111111");
-  assert.ok(preflight.next_required.includes("run funded OpenClaw trades"));
+  assert.ok(preflight.next_required.includes("run funded Aomi-session trades"));
 });
 
 test("live script assembles judged summary from complete live evidence", async (t) => {
@@ -976,7 +1009,15 @@ test("live setup checker separates manual blockers from automated next steps", a
       "PRIVATE_KEY=0xabc",
       `AGENTEX_EXPERIENCE_KEY=${key}`,
       "AGENTEX_SERVICE_URL=http://127.0.0.1:8787",
+      "AOMI_BACKEND_URL=https://api.aomi.dev",
+      "AOMI_APP=agentex",
+      "AOMI_API_KEY=sk-test",
       `AGENTEX_DEPLOYMENT_PATH=${deploymentPath}`,
+      "AGENTEX_AGENT_REGISTRY=eip155:8453:0x1234567890123456789012345678901234567890",
+      "AGENTEX_AGENT_ID_ALPHA=11",
+      "AGENTEX_AGENT_ID_BETA=12",
+      "AGENTEX_AGENT_ID_GAMMA=13",
+      "AGENTEX_AGENT_ID_DELTA=14",
       "",
     ].join("\n"),
   );
@@ -995,6 +1036,7 @@ test("live setup checker separates manual blockers from automated next steps", a
   assert.equal(report.status, "ready_for_live_preflight");
   assert.ok(report.automatic_next.includes("npm run demo:live"));
   assert.ok(report.manual_setup.includes("fund demo wallets and confirm live spend budget"));
+  assert.equal(report.manual_setup.some((step) => /OpenClaw|OPENCLAW|model provider/i.test(step)), false);
 });
 
 test("Aomi live checker blocks localhost unless explicitly allowed", () => {
@@ -1057,6 +1099,83 @@ test("Aomi live checker verifies the Agentex manifest when local service access 
   assert.equal(report.checks.manifest.tools.includes("purchase_experience_access"), true);
   assert.equal(report.checks.aomi_auth.status, "ok");
   assert.ok(report.automatic_next.includes("npm run aomi:registration"));
+});
+
+test("Aomi round runner calls four hosted sessions and writes live evidence", async (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), "agentex-aomi-round-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const outputDir = path.join(root, "live-output");
+  const evidence = sampleLiveEvidence() as {
+    experiences: Record<string, unknown>[];
+    attestations: Record<string, unknown>[];
+    listings: Record<string, unknown>[];
+    purchases: Record<string, unknown>[];
+    registrations: Record<string, unknown>[];
+    ingestions: Record<string, unknown>[];
+  };
+  const calls: Array<{ app: string | null; apiKey?: string; sessionId?: string }> = [];
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const index = calls.length;
+    calls.push({
+      app: url.searchParams.get("app"),
+      apiKey: request.headers["x-api-key"]?.toString(),
+      sessionId: request.headers["x-session-id"]?.toString(),
+    });
+    response.writeHead(200, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({
+        evidence: {
+          experience: evidence.experiences[index],
+          attestation: evidence.attestations[index],
+          listing: evidence.listings[index],
+          purchase: evidence.purchases[index],
+          registration: evidence.registrations[index],
+          ingestion: evidence.ingestions[index],
+        },
+      }),
+    );
+  });
+  t.after(() => server.close());
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (typeof address !== "object" || address === null) {
+    throw new Error("expected mock Aomi server address");
+  }
+
+  const { stdout } = await execFileAsync("node", ["--import", "tsx", "scripts/run-aomi-round.ts"], {
+    cwd: path.resolve("."),
+    env: cleanAgentexEnv({
+      AOMI_BACKEND_URL: `http://127.0.0.1:${address.port}`,
+      AOMI_APP: "agentex",
+      AOMI_API_KEY: "sk-test",
+      AOMI_SESSION_ID_ALPHA: "session-alpha",
+      AOMI_SESSION_ID_BETA: "session-beta",
+      AOMI_SESSION_ID_GAMMA: "session-gamma",
+      AOMI_SESSION_ID_DELTA: "session-delta",
+      AGENTEX_LIVE_OUTPUT_DIR: outputDir,
+    }),
+  });
+  const report = JSON.parse(stdout) as { status: string; evidence_path: string };
+  const written = JSON.parse(readFileSync(report.evidence_path, "utf8")) as { schema: string; experiences: unknown[] };
+
+  assert.equal(report.status, "aomi_round_completed");
+  assert.equal(written.schema, "agentex.live_evidence.v1");
+  assert.equal(written.experiences.length, 4);
+  assert.deepEqual(calls, [
+    { app: "agentex", apiKey: "sk-test", sessionId: "session-alpha" },
+    { app: "agentex", apiKey: "sk-test", sessionId: "session-beta" },
+    { app: "agentex", apiKey: "sk-test", sessionId: "session-gamma" },
+    { app: "agentex", apiKey: "sk-test", sessionId: "session-delta" },
+  ]);
+});
+
+test("Rust Aomi app args do not expose OpenClaw file paths or private keys", async () => {
+  const source = await readFile(path.join("aomi", "agentex-app", "src", "tool.rs"), "utf8");
+
+  assert.doesNotMatch(source, /activity_path|memory_path|buyer_repo|private_key/);
+  assert.match(source, /AomiTradeContext/);
+  assert.match(source, /verify_and_store_experience/);
 });
 
 test("Aomi registration writer emits ERC-8004 files for the four live agents", () => {

@@ -29,6 +29,14 @@ export const tradeExperienceSchema = publicTradeSummarySchema.extend({
   post_trade_reflection_timestamp: z.string().datetime(),
   post_trade_reflection: z.string().min(1),
   source_memory_path: z.string().optional(),
+  source_session: z
+    .object({
+      runtime: z.literal("aomi"),
+      app: z.string().min(1),
+      session_id: z.string().min(1),
+      thread_id: z.string().min(1).optional(),
+    })
+    .optional(),
 });
 
 export const redactionReportSchema = z.object({

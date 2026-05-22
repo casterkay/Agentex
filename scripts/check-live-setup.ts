@@ -1,7 +1,6 @@
-import { access } from "node:fs/promises";
 import path from "node:path";
 
-import { checkOpenClawPrereqs, loadDotEnv, readDemoDeployment, stableJson } from "../src/index.js";
+import { loadDotEnv, readDemoDeployment, stableJson } from "../src/index.js";
 
 const deployEnv = ["AGENTEX_RPC_URL", "AGENTEX_CHAIN_ID", "AGENTEX_DEPLOYER_PRIVATE_KEY", "AGENTEX_DECODER_ADDRESS"];
 const liveEnv = [
@@ -12,6 +11,15 @@ const liveEnv = [
   "AGENTEX_SELLER_PRIVATE_KEY_DELTA",
   "PRIVATE_KEY",
   "AGENTEX_EXPERIENCE_KEY",
+  "AGENTEX_SERVICE_URL",
+  "AOMI_BACKEND_URL",
+  "AOMI_APP",
+  "AOMI_API_KEY",
+  "AGENTEX_AGENT_REGISTRY",
+  "AGENTEX_AGENT_ID_ALPHA",
+  "AGENTEX_AGENT_ID_BETA",
+  "AGENTEX_AGENT_ID_GAMMA",
+  "AGENTEX_AGENT_ID_DELTA",
 ];
 
 async function main(): Promise<void> {
@@ -22,7 +30,6 @@ async function main(): Promise<void> {
   const deployment = await readDeploymentStatus(deploymentPath);
   const addressMismatch = deployment.ok ? deploymentAddressMismatches(deployment.value) : [];
   const addressMissing = deployment.ok ? [] : ["AGENTEX_REGISTRY_ADDRESS", "AGENTEX_DEMO_VENUE_ADDRESS"].filter((name) => isUnset(process.env[name]));
-  const openclaw = await checkOpenClawPrereqs({ openclawRepo: process.env.OPENCLAW_REPO, requireProviderKey: true });
   const automaticNext: string[] = [];
 
   if (deployMissing.length === 0 && !deployment.ok) {
@@ -30,9 +37,6 @@ async function main(): Promise<void> {
   }
   if (deployMissing.length === 0 && liveMissing.length === 0 && deployment.ok && addressMismatch.length === 0) {
     automaticNext.push("npm run demo:live");
-  }
-  if (openclaw.ok) {
-    automaticNext.push("npm run openclaw:deploy");
   }
 
   const blockers = [...deployMissing, ...liveMissing, ...addressMissing, ...addressMismatch];
@@ -52,16 +56,14 @@ async function main(): Promise<void> {
         live_env: { status: liveMissing.length === 0 && addressMissing.length === 0 ? "ok" : "missing", missing: [...liveMissing, ...addressMissing] },
         deployment,
         address_mismatch: addressMismatch,
-        openclaw,
-        aomi_sdk: await aomiStatus(),
+        aomi: aomiStatus(),
       },
       manual_setup: [
         "fund demo wallets and confirm live spend budget",
         "complete ERC-8004 agent registrations for alpha, beta, gamma, and delta",
+        "activate the hosted Aomi app and scoped API key for app agentex",
         "create real Filecoin Pay payment references for each purchase",
         "provide live Arkhai/Alkahest settlement addresses if not using local settlement receipts",
-        ...(openclaw.ok ? [] : openclaw.next_actions),
-        ...(process.env.AOMI_SDK_REPO ? [] : ["set AOMI_SDK_REPO to build the SDK-specific Aomi plugin"]),
       ],
       automatic_next: automaticNext,
     }),
@@ -102,16 +104,28 @@ function deploymentAddressMismatches(deployment: Awaited<ReturnType<typeof readD
   return mismatches;
 }
 
-async function aomiStatus(): Promise<{ status: "ok" | "manual_required"; detail: string }> {
-  if (!process.env.AOMI_SDK_REPO) {
-    return { status: "manual_required", detail: "AOMI_SDK_REPO is not set" };
+function aomiStatus(): { status: "ok" | "missing"; detail: string; backend_url?: string; app?: string; service_url?: string } {
+  const missing = [
+    "AGENTEX_SERVICE_URL",
+    "AOMI_BACKEND_URL",
+    "AOMI_APP",
+    "AOMI_API_KEY",
+    "AGENTEX_AGENT_REGISTRY",
+    "AGENTEX_AGENT_ID_ALPHA",
+    "AGENTEX_AGENT_ID_BETA",
+    "AGENTEX_AGENT_ID_GAMMA",
+    "AGENTEX_AGENT_ID_DELTA",
+  ].filter((name) => isUnset(process.env[name]));
+  if (missing.length > 0) {
+    return { status: "missing", detail: `missing ${missing.join(", ")}` };
   }
-  try {
-    await access(path.join(process.env.AOMI_SDK_REPO, "sdk", "examples", "app-template-http", "src"));
-    return { status: "ok", detail: "Aomi SDK template found" };
-  } catch {
-    return { status: "manual_required", detail: "AOMI_SDK_REPO does not contain sdk/examples/app-template-http/src" };
-  }
+  return {
+    status: "ok",
+    detail: "Aomi backend, app, API key, service URL, and ERC-8004 agent IDs are set",
+    backend_url: process.env.AOMI_BACKEND_URL,
+    app: process.env.AOMI_APP,
+    service_url: process.env.AGENTEX_SERVICE_URL,
+  };
 }
 
 main().catch((error: unknown) => {

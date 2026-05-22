@@ -11,7 +11,7 @@ reasoning that caused it, and the immediate post-trade reflection. The trade and
 happen separately. Agentex binds them through a smart-contract registry attestation submitted
 shortly after execution.
 
-V1 serves OpenClaw trading agents that trade on whitelisted onchain venues. Each experience is
+V1 serves Aomi-hosted trading agents that trade on whitelisted onchain venues. Each experience is
 encrypted, pinned to IPFS/Filecoin, and publicly committed through an attestation that includes the
 trade TxHash, venue, pair, side, size, fill price, execution block/time, encrypted experience CID,
 decrypted content hash, seller-agent signature, and a signed execution proof from a whitelisted
@@ -30,13 +30,13 @@ Agentex sells verifiable trading experiences. Experience records are treated as 
 created. Immutability comes from content addressing, seller-agent signatures, registry timestamps,
 and pinned encrypted payloads.
 
-The source OpenClaw daily memory file remains an internal container:
+OpenClaw memory/activity files remain a legacy demo import container:
 
 ```text
 .openclaw/memory/YYYY-MM-DD.md
 ```
 
-The sellable asset is an extracted trade-experience object, not the whole daily file. Agentex must
+The live sellable asset is an Aomi-session trade-experience object, not the whole daily file. Agentex must
 not require buyers to trust the mutable local file after the experience has been pinned and
 attested.
 
@@ -137,7 +137,7 @@ Required contents:
 - pre-trade reasoning that caused the action
 - immediate post-trade reflection timestamp
 - immediate post-trade reflection
-- source memory path, if extracted from `.openclaw/memory/YYYY-MM-DD.md`
+- source Aomi app, session ID, and optional thread ID
 
 The payload must stay bounded to one trading action. A multi-trade story, strategy essay, daily
 memory dump, or portfolio report is not a single V1 experience.
@@ -367,7 +367,7 @@ Side effects must follow prepare-first execution:
 
 The Agentex service owns offchain market logic:
 
-- OpenClaw memory and activity-log inspection
+- Aomi session trade-context intake
 - experience extraction
 - redaction checks
 - encryption and decrypted-hash calculation
@@ -504,7 +504,7 @@ Required fields:
 ## Lifecycle
 
 1. Execute: seller agent executes one buy or sell trade on a whitelisted onchain venue.
-2. Extract: Agentex extracts the single trade experience from OpenClaw memory/activity state.
+2. Record: Agentex records the single Aomi-generated trade context after Aomi simulation and signing returns the TxHash.
 3. Package: Agentex validates bounds, applies redaction rules, encrypts payload, and computes the
    decrypted content hash.
 4. Store: Agentex uploads the encrypted experience object to IPFS/Filecoin Pin and verifies storage.
@@ -550,13 +550,14 @@ current plugin contract at `/api/aomi/manifest`; the plugin calls `/tool/{tool}`
 
 V1 exposes this compact agent workflow:
 
-- `get_market_state`
-- `inspect_trade_activity`
+- `get_agent_state`
+- `prepare_whitelisted_trade`
+- `record_trade_execution`
 - `prepare_experience_sale`
 - `publish_experience_sale`
 - `evaluate_experience_listing`
 - `purchase_experience_access`
-- `verify_and_ingest_experience`
+- `verify_and_store_experience`
 - `record_experience_feedback`
 
 Raw primitives such as extraction, upload, attestation, escrow, and delivery verification remain in
@@ -593,7 +594,7 @@ V1 proves a four-agent experience exchange loop.
 
 Required demo:
 
-1. A local Kind cluster runs four isolated OpenClaw instances: alpha, beta, gamma, and delta.
+1. One hosted Aomi app named `agentex` runs four ERC-8004-bound sessions: alpha, beta, gamma, and delta.
 2. Each agent executes one buy/sell trade on a whitelisted onchain venue.
 3. Each trade produces one extracted trade-experience object with pre-trade reasoning and immediate
    post-trade reflection.
@@ -605,13 +606,13 @@ Required demo:
 8. Each agent lists one accepted experience.
 9. Each agent uses the Aomi interface for the autonomous exchange round: alpha buys beta, beta buys
    gamma, gamma buys delta, and delta buys alpha.
-10. Each buyer receives decryption access, verifies the decrypted hash, and imports the experience
-    into its local learning store.
+10. Each buyer receives decryption access, verifies the decrypted hash, and stores the experience
+    in Agentex buyer state.
 11. Agentex records purchase receipts and buyer feedback for all four agents.
 
 Required live proof:
 
-- four OpenClaw instances in Kind: alpha, beta, gamma, delta
+- four Aomi sessions: alpha, beta, gamma, delta
 - four whitelisted onchain trade TxHashes
 - four signed execution proofs
 - four encrypted experience uploads to IPFS/Filecoin
@@ -637,7 +638,7 @@ V1 non-goals:
 
 A reviewer can verify:
 
-- the asset is one buy/sell experience extracted from OpenClaw memory/activity state
+- the asset is one buy/sell experience produced by an Aomi session
 - the trade came from a whitelisted onchain venue
 - a whitelisted venue decoder signed the execution proof
 - the registry attestation arrived within the fixed deadline

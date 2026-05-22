@@ -1,9 +1,11 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import { AOMI_TOOL_NAMES, buildAomiManifest } from "./aomi.js";
 import { uploadExperienceToFilecoin } from "./filecoin.js";
 import {
   createTradeExperienceAsset,
+  type AomiTradeContext,
   inspectOpenclawActivity,
   prepareExperienceIngestion,
   previewTradeExperienceSale,
@@ -20,7 +22,7 @@ import {
 } from "./market.js";
 import { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
 import { createExecutionProof } from "./venue.js";
-import { type AgentRef, readJson } from "./shared.js";
+import { type AgentRef, readJson, stableJson } from "./shared.js";
 import { type ExecutionProof, type ExperienceManifest, type TradeExperience } from "./schemas.js";
 import { listArkhaiEscrows } from "./arkhai.js";
 
@@ -38,6 +40,7 @@ export function planExchangeRound(agents: string[]): Array<{ buyer: string; sell
 
 export async function invokeAgentexTool(name: string, args: Record<string, unknown>): Promise<AgentexToolResult> {
   switch (name) {
+    case "get_agent_state":
     case "get_market_state":
       return {
         status: "ready",
@@ -46,6 +49,51 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         round: args.agents === undefined ? undefined : planExchangeRound(arrayArg(args, "agents")),
         summary: await readOptionalSummary(),
       };
+    case "prepare_whitelisted_trade":
+      return {
+        status: "prepared",
+        action: "record_trade_execution",
+        venue_intent: {
+          chain_id: numberArg(args, "chainId"),
+          whitelisted_venue_id: stringArg(args, "whitelistedVenueId"),
+          pair: stringArg(args, "pair"),
+          side: sideArg(args),
+          size: stringArg(args, "size"),
+          max_slippage_bps: args.maxSlippageBps === undefined ? undefined : numberArg(args, "maxSlippageBps"),
+        },
+        transaction_pipeline: {
+          owner: "aomi",
+          simulation_required: true,
+          signing_required: true,
+        },
+        verification_expectations: {
+          expected_fields: ["trade_tx_hash", "venue", "pair", "side", "size", "fill_price"],
+          recorder_tool: "record_trade_execution",
+        },
+      };
+    case "record_trade_execution": {
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          next_action: `call ${name} again with confirm:true after Aomi simulation and signing returns a TxHash`,
+        };
+      }
+      const tradeContext = tradeContextArg(args);
+      const trade = tradeContext.trade;
+      stringField(trade, "trade_tx_hash");
+      return {
+        status: "recorded",
+        action: "prepare_experience_sale",
+        source_session: {
+          runtime: "aomi",
+          app: tradeContext.source.app,
+          session_id: tradeContext.source.sessionId,
+          ...(tradeContext.source.threadId ? { thread_id: tradeContext.source.threadId } : {}),
+        },
+        public_trade_summary: publicTradeSummaryArg(trade),
+      };
+    }
     case "inspect_trade_activity":
       return inspectOpenclawActivity({
         activityPath: stringArg(args, "activityPath"),
@@ -54,12 +102,11 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
     case "prepare_experience_sale":
       return {
         ...(await previewTradeExperienceSale({
-        activityPath: stringArg(args, "activityPath"),
-        memoryPath: stringArg(args, "memoryPath"),
-        sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
-        priceAmount: stringArg(args, "priceAmount"),
-        paymentAsset: stringArg(args, "paymentAsset"),
-        outDir: optionalStringArg(args, "outDir"),
+          ...experienceInputArgs(args),
+          sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
+          priceAmount: stringArg(args, "priceAmount"),
+          paymentAsset: stringArg(args, "paymentAsset"),
+          outDir: optionalStringArg(args, "outDir"),
         })),
       };
     case "publish_experience_sale": {
@@ -67,13 +114,12 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         return {
           status: "confirmation_required",
           action: name,
-          activity_path: stringArg(args, "activityPath"),
+          source: args.tradeContext === undefined ? { activity_path: stringArg(args, "activityPath") } : { runtime: "aomi" },
           next_action: `call ${name} again with confirm:true`,
         };
       }
       const asset = await createTradeExperienceAsset({
-        activityPath: stringArg(args, "activityPath"),
-        memoryPath: stringArg(args, "memoryPath"),
+        ...experienceInputArgs(args),
         sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
         key: stringArg(args, "key"),
         outDir: optionalStringArg(args, "outDir"),
@@ -90,8 +136,8 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         args.live === true ? await readJson<ExperienceManifest>(asset.paths.manifest) : asset.manifest;
       const proof = createExecutionProof({
         trade: asset.experience,
-        decoderId: stringArg(args, "decoderId"),
-        decoderKey: stringArg(args, "decoderKey"),
+        decoderId: optionalStringArg(args, "decoderId") ?? process.env.AGENTEX_DECODER_ADDRESS ?? "demo-decoder",
+        decoderKey: optionalStringArg(args, "decoderKey") ?? process.env.AGENTEX_DECODER_PRIVATE_KEY ?? "local-decoder-key",
       });
       const prepared = prepareRegistryAttestation({
         manifest,
@@ -155,6 +201,27 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         keyEnvelope: stringArg(args, "keyEnvelope"),
         deliveryProof: stringArg(args, "deliveryProof"),
       });
+    case "verify_and_store_experience": {
+      const verified = await verifyExperienceDelivery({
+        purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
+        key: stringArg(args, "key"),
+      });
+      if (args.confirm !== true) {
+        return {
+          status: "confirmation_required",
+          action: name,
+          purchase_receipt_path: stringArg(args, "purchaseReceiptPath"),
+          decryption_verification_result: verified.receipt.decryption_verification_result,
+          next_action: `call ${name} again with confirm:true to store the verified experience`,
+        };
+      }
+      const storage = await storeVerifiedExperience({
+        purchaseReceiptPath: verified.path,
+        key: stringArg(args, "key"),
+        storeDir: optionalStringArg(args, "storeDir"),
+      });
+      return { status: "verified_and_stored", receipt: verified.receipt, storage };
+    }
     case "verify_and_ingest_experience": {
       const verified = await verifyExperienceDelivery({
         purchaseReceiptPath: stringArg(args, "purchaseReceiptPath"),
@@ -353,6 +420,29 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
   }
 }
 
+async function storeVerifiedExperience(input: {
+  purchaseReceiptPath: string;
+  key: string;
+  storeDir?: string;
+}): Promise<{ status: "stored"; path: string }> {
+  const verified = await verifyExperienceDelivery({ purchaseReceiptPath: input.purchaseReceiptPath, key: input.key });
+  const storeDir = path.resolve(input.storeDir ?? path.join(path.dirname(input.purchaseReceiptPath), "stored-experiences"));
+  await mkdir(storeDir, { recursive: true });
+  const outPath = path.join(storeDir, `${verified.receipt.purchase_id}.json`);
+  await writeFile(
+    outPath,
+    stableJson({
+      schema: "agentex.stored_experience.v1",
+      purchase_id: verified.receipt.purchase_id,
+      seller_agent: verified.receipt.seller_agent,
+      listing_id: verified.receipt.listing_id,
+      verified_decrypted_hash: verified.receipt.decrypted_experience_hash,
+      manifest_path: verified.receipt.manifest_path,
+    }),
+  );
+  return { status: "stored", path: outPath };
+}
+
 async function readOptionalSummary(): Promise<unknown | undefined> {
   for (const filePath of ["demo/live-output/summary.json", "demo/local-output/summary.json"]) {
     try {
@@ -410,6 +500,70 @@ function agentRefArg(value: unknown, name: string): AgentRef {
     throw new Error(`${name}.agentRegistry and ${name}.agentId are required`);
   }
   return { agentRegistry: ref.agentRegistry, agentId: ref.agentId };
+}
+
+function experienceInputArgs(args: Record<string, unknown>): { tradeContext: AomiTradeContext } | { activityPath: string; memoryPath: string } {
+  if (args.tradeContext !== undefined) {
+    return { tradeContext: tradeContextArg(args) };
+  }
+  return {
+    activityPath: stringArg(args, "activityPath"),
+    memoryPath: stringArg(args, "memoryPath"),
+  };
+}
+
+function tradeContextArg(args: Record<string, unknown>): AomiTradeContext {
+  const value = args.tradeContext;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("tradeContext is required");
+  }
+  const context = value as Record<string, unknown>;
+  const source = context.source;
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    throw new Error("tradeContext.source is required");
+  }
+  const sourceObject = source as Record<string, unknown>;
+  const app = stringField(sourceObject, "app");
+  const sessionId = stringField(sourceObject, "sessionId");
+  const threadId = sourceObject.threadId === undefined ? undefined : stringField(sourceObject, "threadId");
+  const trade = context.trade;
+  if (!trade || typeof trade !== "object" || Array.isArray(trade)) {
+    throw new Error("tradeContext.trade is required");
+  }
+  return {
+    source: { app, sessionId, ...(threadId ? { threadId } : {}) },
+    trade: trade as Record<string, unknown>,
+  };
+}
+
+function sideArg(args: Record<string, unknown>): "buy" | "sell" {
+  const value = stringArg(args, "side");
+  if (value !== "buy" && value !== "sell") {
+    throw new Error("side must be buy or sell");
+  }
+  return value;
+}
+
+function stringField(value: Record<string, unknown>, field: string): string {
+  const fieldValue = value[field];
+  if (typeof fieldValue !== "string" || fieldValue.length === 0) {
+    throw new Error(`${field} is required`);
+  }
+  return fieldValue;
+}
+
+function publicTradeSummaryArg(trade: Record<string, unknown>): Record<string, unknown> {
+  return {
+    chain_id: trade.chain_id,
+    whitelisted_venue_id: trade.whitelisted_venue_id,
+    trade_tx_hash: trade.trade_tx_hash,
+    pair: trade.pair,
+    side: trade.side,
+    size: trade.size,
+    fill_price: trade.fill_price,
+    execution_block_number: trade.execution_block_number,
+    execution_timestamp: trade.execution_timestamp,
+  };
 }
 
 function networkArg(args: Record<string, unknown>): "mainnet" | "calibration" | undefined {

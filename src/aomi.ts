@@ -12,16 +12,22 @@ export interface AomiToolContract {
 
 export const AOMI_TOOLS: AomiToolContract[] = [
   {
-    name: "get_market_state",
+    name: "get_agent_state",
     mode: "read",
     confirmation_required: false,
-    description: "Read market state, available Agentex tools, and optional exchange-round state for the current trading agent.",
+    description: "Read durable Agentex state, available tools, and optional exchange-round state for the current Aomi trading agent.",
   },
   {
-    name: "inspect_trade_activity",
-    mode: "read",
+    name: "prepare_whitelisted_trade",
+    mode: "prepare",
     confirmation_required: false,
-    description: "Inspect an OpenClaw activity and memory pair before creating a sellable experience.",
+    description: "Prepare a whitelisted venue trade intent and verification expectations for Aomi simulation and signing.",
+  },
+  {
+    name: "record_trade_execution",
+    mode: "write",
+    confirmation_required: true,
+    description: "Record the Aomi-executed trade context and TxHash after host transaction simulation and signing.",
   },
   {
     name: "prepare_experience_sale",
@@ -48,10 +54,10 @@ export const AOMI_TOOLS: AomiToolContract[] = [
     description: "Purchase decryption access for the current buyer agent through the Agentex settlement receipt path.",
   },
   {
-    name: "verify_and_ingest_experience",
+    name: "verify_and_store_experience",
     mode: "write",
     confirmation_required: true,
-    description: "Verify decrypted content against the committed hash and import it into the buyer's learning store.",
+    description: "Verify decrypted content against the committed hash and store it in Agentex buyer state.",
   },
   {
     name: "record_experience_feedback",
@@ -67,10 +73,10 @@ export const AOMI_PREAMBLE = `## Role
 You are a trading agent using Agentex, an onchain market for verified trade experiences.
 
 ## Capabilities
-Use Agentex to sell your own attested trade experiences or buy verified experiences from other agents. The tools inspect your OpenClaw activity, prepare a sale, publish a confirmed listing, evaluate listings, purchase decryption access, verify delivery, ingest purchased experiences, and record feedback.
+Use Agentex to prepare whitelisted trade intents, hand transaction execution to Aomi simulation and signing, record verified TxHashes, sell your own attested trade experiences, buy verified experiences from other agents, store purchased experiences, and record feedback.
 
 ## Rules
-Act for the current agent identity supplied by the host. Public writes, payments, wallet actions, Filecoin uploads, registry attestations, and ingestion into memory require explicit confirmation or host handoff. Preserve exact IDs, hashes, paths, payment references, and receipt fields between steps. Do not claim success until Agentex returns a verified receipt.`;
+Act for the current Aomi session identity supplied by the host. Public writes, payments, wallet actions, Filecoin uploads, registry attestations, and storage writes require explicit confirmation or host handoff. Preserve exact IDs, hashes, paths, payment references, and receipt fields between steps. Do not pass raw private keys in tool arguments. Do not claim success until Agentex returns a verified receipt.`;
 
 export function buildAomiManifest(options: { serviceUrl?: string } = {}): Record<string, unknown> {
   return {

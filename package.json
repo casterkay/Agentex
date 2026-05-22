@@ -14,6 +14,7 @@
     "live:check": "node --import tsx scripts/check-live-setup.ts",
     "aomi:check": "node --import tsx scripts/check-aomi-live.ts",
     "aomi:registration": "node --import tsx scripts/write-aomi-registration.ts",
+    "aomi:round": "node --import tsx scripts/run-aomi-round.ts",
     "deploy:demo": "node --import tsx scripts/deploy-demo-contracts.ts",
     "openclaw:deploy": "node --import tsx scripts/deploy-openclaw-kind.ts",
     "demo:local": "node --import tsx scripts/run-local-v1.ts",

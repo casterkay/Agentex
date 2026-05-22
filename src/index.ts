@@ -17,6 +17,7 @@ export {
   tradeExperienceSchema,
 } from "./schemas.js";
 export {
+  type AomiTradeContext,
   type TradeExperienceAsset,
   createTradeExperienceAsset,
   inspectOpenclawActivity,

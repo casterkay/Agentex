@@ -46,6 +46,15 @@ export interface TradeExperienceAsset {
   };
 }
 
+export interface AomiTradeContext {
+  source: {
+    app: string;
+    sessionId: string;
+    threadId?: string;
+  };
+  trade: Record<string, unknown>;
+}
+
 export interface TradeExperienceSalePreview {
   status: "prepared";
   action: "publish_experience_sale";
@@ -78,20 +87,17 @@ export async function inspectOpenclawActivity(input: { activityPath: string; mem
 }
 
 export async function previewTradeExperienceSale(input: {
-  activityPath: string;
-  memoryPath: string;
+  activityPath?: string;
+  memoryPath?: string;
+  tradeContext?: AomiTradeContext;
   sellerAgent: AgentRef;
   priceAmount: string;
   paymentAsset: string;
   outDir?: string;
 }): Promise<TradeExperienceSalePreview> {
-  const experience = await buildTradeExperience({
-    activityPath: input.activityPath,
-    memoryPath: input.memoryPath,
-    sellerAgent: input.sellerAgent,
-  });
+  const experience = await buildTradeExperience(input);
   const redaction = inspectRedaction(experience);
-  const outputDir = path.resolve(input.outDir ?? path.join(path.dirname(input.activityPath), "..", ".agentex", experience.experience_id));
+  const outputDir = path.resolve(input.outDir ?? defaultArtifactRoot(input, experience.experience_id));
   return {
     status: "prepared",
     action: "publish_experience_sale",
@@ -114,8 +120,9 @@ export async function previewTradeExperienceSale(input: {
 }
 
 export async function createTradeExperienceAsset(input: {
-  activityPath: string;
-  memoryPath: string;
+  activityPath?: string;
+  memoryPath?: string;
+  tradeContext?: AomiTradeContext;
   sellerAgent: AgentRef;
   key: string;
   outDir?: string;
@@ -129,7 +136,7 @@ export async function createTradeExperienceAsset(input: {
   const plaintext = stableJson(experience);
   const encryptedText = stableJson(encrypt(Buffer.from(plaintext, "utf8"), input.key));
   const redactionText = stableJson(redaction);
-  const root = path.resolve(input.outDir ?? path.join(path.dirname(input.activityPath), "..", ".agentex", experience.experience_id));
+  const root = path.resolve(input.outDir ?? defaultArtifactRoot(input, experience.experience_id));
   await mkdir(root, { recursive: true });
 
   const manifest = experienceManifestSchema.parse({
@@ -229,10 +236,29 @@ function publicTradeSummary(experience: TradeExperience): TradeExperienceAsset["
 }
 
 async function buildTradeExperience(input: {
-  activityPath: string;
-  memoryPath: string;
+  activityPath?: string;
+  memoryPath?: string;
+  tradeContext?: AomiTradeContext;
   sellerAgent: AgentRef;
 }): Promise<TradeExperience> {
+  if (input.tradeContext) {
+    const rawTrade = input.tradeContext.trade;
+    return tradeExperienceSchema.parse({
+      schema: "agentex.trade_experience.v1",
+      experience_id: sha256(stableJson({ seller: input.sellerAgent, trade: rawTrade })).slice(0, 32),
+      seller_agent: input.sellerAgent,
+      source_session: {
+        runtime: "aomi",
+        app: input.tradeContext.source.app,
+        session_id: input.tradeContext.source.sessionId,
+        ...(input.tradeContext.source.threadId ? { thread_id: input.tradeContext.source.threadId } : {}),
+      },
+      ...rawTrade,
+    });
+  }
+  if (!input.activityPath || !input.memoryPath) {
+    throw new Error("tradeContext or activityPath and memoryPath are required");
+  }
   const activity = await readJson<{ trades?: unknown[] }>(input.activityPath);
   if (!Array.isArray(activity.trades) || activity.trades.length !== 1) {
     throw new Error("activity must contain exactly one trade");
@@ -246,6 +272,13 @@ async function buildTradeExperience(input: {
     source_memory_path: memoryPath.startsWith("..") ? input.memoryPath : memoryPath,
     ...rawTrade,
   });
+}
+
+function defaultArtifactRoot(input: { activityPath?: string }, experienceId: string): string {
+  if (input.activityPath) {
+    return path.join(path.dirname(input.activityPath), "..", ".agentex", experienceId);
+  }
+  return path.join("demo", "live-output", "agentex", experienceId);
 }
 
 function inspectRedaction(experience: TradeExperience): TradeExperienceAsset["redaction"] {

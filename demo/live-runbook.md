@@ -7,8 +7,8 @@ bundles, reject unsafe live listings, and render the market view. You must manua
 
 - funded demo wallets for contract deployment, four seller agents, and Filecoin Pin/Filecoin Pay
 - the live RPC endpoint and chain ID
-- one model-provider key for OpenClaw
-- a local OpenClaw checkout at `OPENCLAW_REPO`
+- one hosted Aomi app named `agentex`
+- Aomi session IDs for alpha, beta, gamma, and delta
 - ERC-8004 registrations for alpha, beta, gamma, and delta
 - real Filecoin Pay payment references
 - live Arkhai/Alkahest addresses if final evidence must use live escrow instead of local settlement receipts
@@ -34,8 +34,8 @@ npm run live:check
 
 - missing or placeholder env vars
 - whether `deployments/live-v1.json` has address and block-number receipts
-- OpenClaw local prerequisites
-- Aomi SDK availability
+- hosted Aomi backend/app/key/session readiness
+- ERC-8004 agent identity readiness
 - the next automated command that is safe to run
 
 ## Prepare Aomi Hosting
@@ -53,12 +53,10 @@ npm run aomi:check
 Use the Aomi-issued app/key against the real Aomi deployment. Official Aomi clients target
 `https://api.aomi.dev`, pass the app name, and include the scoped key for non-default apps.
 
-Build the Rust app wrapper before registering the hosted app:
+Check the Rust app wrapper before registering the hosted app:
 
 ```bash
 CARGO_HOME=/private/tmp/agentex-cargo-home cargo test --manifest-path aomi/agentex-app/Cargo.toml
-# From an Aomi SDK checkout when publishing the app bundle:
-# cargo run -p xtask -- build-aomi --app agentex
 ```
 
 ## Write ERC-8004 Registration Files
@@ -126,21 +124,19 @@ override checks.
 node --import tsx src/cli.ts serve --host 127.0.0.1 --port 8787
 ```
 
-## Start Four OpenClaw Instances
+## Prepare Four Aomi Sessions
 
 Manual setup:
 
-- install and start Docker, OrbStack, or Podman
-- install `kind` and `kubectl`
-- set `OPENCLAW_REPO` to a local OpenClaw checkout
-- set one of `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`
-- confirm `AGENTEX_AGENT_TRADE_BUDGET_MON` is bounded and acceptable
+- create or resume one Aomi session for each live agent: alpha, beta, gamma, and delta
+- set `AOMI_SESSION_ID_ALPHA` through `AOMI_SESSION_ID_DELTA`
+- confirm each session is bound to the matching ERC-8004 agent identity and funded wallet
+- confirm the hosted Aomi transaction pipeline simulates before requesting signatures
 
 Automated step:
 
 ```bash
 npm run live:check
-npm run openclaw:deploy
 ```
 
 ## Create Live Listings
@@ -161,7 +157,8 @@ node --import tsx src/cli.ts market list \
 
 ## Run Live Round
 
-After deployment, set the four seller keys, `PRIVATE_KEY`, and `AGENTEX_EXPERIENCE_KEY`.
+After deployment, set the four seller keys, `PRIVATE_KEY`, `AGENTEX_EXPERIENCE_KEY`, and the four
+`AOMI_SESSION_ID_*` values.
 
 Filecoin Pay remains an explicit settlement receipt reference in the current CLI. Do not use local
 placeholders such as `filecoin-pay:alpha-beta` in final live evidence; record the real external
@@ -169,13 +166,17 @@ payment reference for each purchase.
 
 ```bash
 npm run live:check
+npm run aomi:round
 npm run demo:live
 cd web && npm run dev
 ```
 
 Without a live evidence file, `npm run demo:live` writes `demo/live-output/preflight.json` after env
-and deployment checks. After the funded OpenClaw, Filecoin Pay, ERC-8004, and Arkhai/Alkahest steps
-produce the evidence, write it to `demo/live-input/evidence.json` or set `AGENTEX_LIVE_EVIDENCE_PATH`.
+and deployment checks. `npm run aomi:round` calls `https://api.aomi.dev/api/chat?app=agentex` (or
+your configured `AOMI_BACKEND_URL`) once per agent with `X-API-Key` and `X-Session-Id`, then writes
+`demo/live-output/evidence.json`. After Filecoin Pay, ERC-8004, and Arkhai/Alkahest steps produce
+or verify the evidence, set `AGENTEX_LIVE_EVIDENCE_PATH` to that file or copy it to
+`demo/live-input/evidence.json`.
 Then rerun:
 
 ```bash
@@ -197,7 +198,7 @@ deploying the app so it can read a public summary endpoint.
 
 ## Judge Checklist
 
-- four OpenClaw instances in Kind: alpha, beta, gamma, delta
+- four Aomi sessions: alpha, beta, gamma, delta
 - four whitelisted onchain trade TxHashes
 - four signed execution proofs
 - four encrypted experience uploads to IPFS/Filecoin

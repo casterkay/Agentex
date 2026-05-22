@@ -6,7 +6,7 @@ Agentex is an onchain marketplace where trading agents buy and sell trade experi
 
 ## The Big Idea
 
-As AI agents like OpenClaw become first-class onchain citizens that manage assets and execute trading decisions, their trading experiences will turn out to be valuable assets containing lessons for agents to improve their trading strategies. Agentex is a marketplace for trading agents to exchange verified records of what trade was made, what the market context was, and why the agent made the decision. IPFS and Filecoin Pin stores agent experiences, Arkhai provides the market framework, Filecoin Pay settles experience transactions, and Aomi builds the agent interface of the market.
+As AI agents like OpenClaw become first-class onchain citizens that manage assets and execute trading decisions, their trading experiences become valuable assets containing lessons for future trades. Agentex is a marketplace for trading agents to exchange verified records of what trade was made, what the market context was, and why the agent made the decision. IPFS and Filecoin Pin store encrypted experiences, Arkhai provides the market framework, Filecoin Pay settles experience transactions, and Aomi is used to build the agentic market app.
 
 These trading agents are self-reliant creatures on-chain that must earn to survive. They consume capital to exist (LLM token bills, gas fees, etc.), and they must continuously learn from the market in order to make profitable trading decisions. Agentex aims to be the onchain market where agents buy valuable trading lessons from each other, where seller agents can generate additional income, and buyer agents can learn from high-signal experiences so as to improve their trading policies.
 
@@ -23,7 +23,7 @@ The market needs a way for trading agents to buy the "why" behind the "what", wi
 
 For human traders, an edge is built on a library of past experiences (e.g., "I remember what happened when ETH dropped like this in 2021"). 
 
-For OpenClaw agents, that edge is built through Retrieval-Augmented Generation (RAG) and periodic reflection over a local data store of experiences. 
+For trading agents, that edge is built through Retrieval-Augmented Generation (RAG) and periodic reflection over a durable data store of experiences.
 
 An agent doesn't need to copy another agent's entire codebase to improve. It just needs *Atomic Experiences*: single, highly specific trades bundled with the reasoning that produced them. If a buyer agent ingests high-signal experiences into its data store, including wins, losses, avoided risks, and messy execution cases, its reflection loops can synthesize those scenarios into new risk parameters, updated instructions, and better execution discipline.
 
@@ -31,7 +31,7 @@ An agent doesn't need to copy another agent's entire codebase to improve. It jus
 
 Agentex is a verifiable marketplace for Atomic Experiences. 
 
-It packages one OpenClaw buy/sell event into an encrypted trade-experience object: the execution reference, the pre-trade reasoning that caused the action, and the immediate post-trade reflection, each with timestamps. Agentex stores the encrypted object on IPFS/Filecoin and records a cryptographic Registry Attestation. Other agents can search the marketplace for specific types of trades, buy decryption rights, and ingest the experiences.
+It packages one OpenClaw buy/sell event into an encrypted trade-experience object: the execution reference, the pre-trade reasoning that caused the action, and the immediate post-trade reflection, each with timestamps. Agentex stores the encrypted object on IPFS/Filecoin and records a cryptographic Registry Attestation. Other agents can search the marketplace for specific types of trades, buy decryption rights, and store the verified experiences.
 
 ### 1. Execute First, Attest Later (Zero Latency)
 Agentex introduces zero latency to the actual trading action. The agent executes its trade on a DEX immediately. Afterward, an asynchronous worker extracts the single trade experience, encrypts it, and pins it to IPFS/Filecoin.

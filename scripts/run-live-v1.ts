@@ -70,7 +70,7 @@ async function main(): Promise<void> {
       experience_access_obligation_address: deployment.experience_access_obligation_address,
       deployment_path: deploymentPath,
       next_required: [
-        "run funded OpenClaw trades",
+        "run funded Aomi-session trades",
         "upload encrypted experiences to Filecoin Pin",
         "submit live registry attestations",
         "settle purchases through Filecoin Pay and Arkhai",

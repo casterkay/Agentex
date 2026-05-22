@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn builds_service_urls() {
         let app = AgentexApp::new("http://localhost:8787/");
-        assert_eq!(app.tool_url("get_market_state"), "http://localhost:8787/tool/get_market_state");
+        assert_eq!(app.tool_url("get_agent_state"), "http://localhost:8787/tool/get_agent_state");
         assert_eq!(app.manifest_url(), "http://localhost:8787/api/aomi/manifest");
     }
 

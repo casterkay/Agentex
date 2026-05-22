@@ -16,7 +16,7 @@ pub struct AgentRef {
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct GetMarketStateArgs {
+pub struct GetAgentStateArgs {
     /// Optional exchange-round agents. When present, Agentex returns the ring order.
     #[serde(default)]
     pub agents: Vec<String>,
@@ -24,21 +24,58 @@ pub struct GetMarketStateArgs {
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct InspectTradeActivityArgs {
-    /// OpenClaw activity JSON path.
-    pub activity_path: String,
-    /// Optional OpenClaw memory path.
+pub struct AomiTradeSource {
+    /// Hosted Aomi app name.
+    pub app: String,
+    /// Aomi session ID for the current agent.
+    pub session_id: String,
+    /// Optional Aomi thread ID.
     #[serde(default)]
-    pub memory_path: Option<String>,
+    pub thread_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AomiTradeContext {
+    /// Aomi session or thread metadata that produced the decision.
+    pub source: AomiTradeSource,
+    /// Structured trade execution context with TxHash, venue, pair, side, size, fill price, reasoning, and reflection.
+    pub trade: Value,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PrepareWhitelistedTradeArgs {
+    /// Target chain ID.
+    pub chain_id: u64,
+    /// Agentex whitelisted venue ID.
+    pub whitelisted_venue_id: String,
+    /// Pair to trade, such as ETH/USDC.
+    pub pair: String,
+    /// buy or sell.
+    pub side: String,
+    /// Order size.
+    pub size: String,
+    /// Optional maximum slippage in basis points.
+    #[serde(default)]
+    pub max_slippage_bps: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RecordTradeExecutionArgs {
+    /// Aomi-generated trade context after transaction simulation and signing.
+    pub trade_context: AomiTradeContext,
+    /// Explicit confirmation required after Aomi returns a transaction hash.
+    #[serde(default)]
+    pub confirm: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PrepareExperienceSaleArgs {
-    /// OpenClaw activity JSON path containing exactly one trade.
-    pub activity_path: String,
-    /// OpenClaw memory path that contains the source reflection context.
-    pub memory_path: String,
+    /// Aomi-generated trade context containing exactly one executed trade.
+    pub trade_context: AomiTradeContext,
     /// Seller ERC-8004 identity.
     pub seller_agent: AgentRef,
     /// Listing price amount.
@@ -53,18 +90,14 @@ pub struct PrepareExperienceSaleArgs {
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PublishExperienceSaleArgs {
-    /// OpenClaw activity JSON path containing exactly one trade.
-    pub activity_path: String,
-    /// OpenClaw memory path that contains the source reflection context.
-    pub memory_path: String,
+    /// Aomi-generated trade context containing exactly one executed trade.
+    pub trade_context: AomiTradeContext,
     /// Seller ERC-8004 identity.
     pub seller_agent: AgentRef,
     /// Experience encryption key supplied by the host.
     pub key: String,
     /// Whitelisted venue decoder ID.
     pub decoder_id: String,
-    /// Whitelisted venue decoder signing key or local demo key.
-    pub decoder_key: String,
     /// Seller nonce for registry attestation.
     pub seller_nonce: String,
     /// ISO timestamp after which the attestation expires.
@@ -81,12 +114,6 @@ pub struct PublishExperienceSaleArgs {
     /// Require live Filecoin-backed storage before listing.
     #[serde(default)]
     pub live: bool,
-    /// Filecoin Pin wallet private key supplied by the host when live publishing.
-    #[serde(default)]
-    pub private_key: Option<String>,
-    /// Filecoin Pin network, usually mainnet or calibration.
-    #[serde(default)]
-    pub network: Option<String>,
     /// Explicit confirmation required for public writes.
     #[serde(default)]
     pub confirm: bool,
@@ -122,13 +149,14 @@ pub struct PurchaseExperienceAccessArgs {
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct VerifyAndIngestExperienceArgs {
+pub struct VerifyAndStoreExperienceArgs {
     /// Agentex purchase receipt path.
     pub purchase_receipt_path: String,
     /// Experience decryption key supplied by the host.
     pub key: String,
-    /// Buyer OpenClaw repository path.
-    pub buyer_repo: String,
+    /// Optional Agentex buyer-state storage directory.
+    #[serde(default)]
+    pub store_dir: Option<String>,
     /// Explicit confirmation required before writing into buyer memory.
     #[serde(default)]
     pub confirm: bool,
@@ -164,18 +192,35 @@ macro_rules! service_tool {
 }
 
 service_tool!(
-    GetMarketState,
-    GetMarketStateArgs,
-    "get_market_state",
-    "Read market state, available Agentex tools, and optional exchange-round state for the current trading agent."
+    GetAgentState,
+    GetAgentStateArgs,
+    "get_agent_state",
+    "Read durable Agentex state, available tools, and optional exchange-round state for the current Aomi trading agent."
 );
 
 service_tool!(
-    InspectTradeActivity,
-    InspectTradeActivityArgs,
-    "inspect_trade_activity",
-    "Inspect an OpenClaw activity and memory pair before creating a sellable experience."
+    PrepareWhitelistedTrade,
+    PrepareWhitelistedTradeArgs,
+    "prepare_whitelisted_trade",
+    "Prepare a whitelisted venue trade intent for Aomi transaction simulation and signing."
 );
+
+pub struct RecordTradeExecution;
+
+impl DynAomiTool for RecordTradeExecution {
+    type App = AgentexApp;
+    type Args = RecordTradeExecutionArgs;
+    const NAME: &'static str = "record_trade_execution";
+    const DESCRIPTION: &'static str =
+        "Record the Aomi-executed trade context and TxHash after explicit confirmation.";
+
+    fn run(app: &AgentexApp, args: Self::Args, _ctx: DynToolCallCtx) -> Result<Value, String> {
+        if !args.confirm {
+            return Ok(host_handoff(Self::NAME, json!(args)));
+        }
+        app.post_tool(Self::NAME, &args)
+    }
+}
 
 service_tool!(
     PrepareExperienceSale,
@@ -225,14 +270,14 @@ impl DynAomiTool for PurchaseExperienceAccess {
     }
 }
 
-pub struct VerifyAndIngestExperience;
+pub struct VerifyAndStoreExperience;
 
-impl DynAomiTool for VerifyAndIngestExperience {
+impl DynAomiTool for VerifyAndStoreExperience {
     type App = AgentexApp;
-    type Args = VerifyAndIngestExperienceArgs;
-    const NAME: &'static str = "verify_and_ingest_experience";
+    type Args = VerifyAndStoreExperienceArgs;
+    const NAME: &'static str = "verify_and_store_experience";
     const DESCRIPTION: &'static str =
-        "Verify decrypted content and import it into the buyer's OpenClaw learning store after confirmation.";
+        "Verify decrypted content and store it in Agentex buyer state after confirmation.";
 
     fn run(app: &AgentexApp, args: Self::Args, _ctx: DynToolCallCtx) -> Result<Value, String> {
         if !args.confirm {

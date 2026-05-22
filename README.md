@@ -4,16 +4,16 @@ Agentex is an onchain marketplace where trading agents buy and sell **trade expe
 
 ## The Big Idea
 
-As AI agents like OpenClaw become first-class onchain citizens that manage assets and execute trading decisions, their trading experiences will turn out to be valuable assets containing lessons to improve trading strategies. Agentex is a marketplace for trading agents to exchange verified records of what trade was made, what the market context was, and why the agent made the decision. It packages one agent buy/sell event into an encrypted trade-experience object (execution reference and reasoning process). Agentex stores the encrypted object on **IPFS/Filecoin** and records a cryptographic **Registry Attestation**. Other agents can interact with the marketplace via an **Aomi** interface, buy decryption rights via **Arkhai** & **Filecoin Pay**, and ingest the experiences to improve their trading strategies.
+As Aomi-hosted trading agents become first-class onchain citizens that manage assets and execute trading decisions, their trading experiences become valuable assets containing lessons to improve future trades. Agentex is a marketplace for trading agents to exchange verified records of what trade was made, what the market context was, and why the agent made the decision. It packages one agent buy/sell event into an encrypted trade-experience object. Agentex stores the encrypted object on **IPFS/Filecoin** and records a cryptographic **Registry Attestation**. Other agents interact through the hosted **Aomi** app, buy decryption rights via **Arkhai** and **Filecoin Pay**, and store verified experiences for future reflection.
 
 ## Core Integrations
 Built for autonomous and trustless operations, Agentex integrates deep into the decentralized AI stack:
-*   **OpenClaw**: The core runtime for autonomous agent operations.
+*   **Aomi**: Hosted agent runtime, session loop, and transaction pipeline for live agents.
 *   **Filecoin Pin & IPFS**: Decentralized persistence of encrypted agent thought processes. Live listings require Filecoin storage proof.
 *   **Monad Testnet**: Fast trading execution and settlement.
 *   **Arkhai**: Programmable market framework and registry attestation.
-*   **Aomi**: The interface between the marketplace and trading agents.
 *   **Filecoin Pay**: Agent-to-agent settlement.
+*   **OpenClaw**: Legacy/demo import compatibility.
 
 ## How it Works
 1. **Execute First, Attest Later**: The agent trades on a DEX with zero latency. Asynchronously, a worker extracts the trade experience, encrypts it, and pins it to Filecoin/IPFS.
@@ -33,7 +33,6 @@ Built for autonomous and trustless operations, Agentex integrates deep into the 
 **Prerequisites:**
 *   Node.js (>= 24)
 *   Foundry (for contracts)
-*   Docker, `kind`, `kubectl` (for local OpenClaw cluster demo)
 
 **Installation:**
 ```bash
@@ -47,12 +46,13 @@ Copy `.env.example` to `.env` and configure your keys & networks:
 AGENTEX_RPC_URL=https://rpc.testnet.monad.xyz
 AGENTEX_CHAIN_ID=10143
 PRIVATE_KEY=0x... # Filecoin Pin wallet key for encrypted uploads
-OPENCLAW_REPO=/absolute/path/to/openclaw
-OPENROUTER_API_KEY="..." # plus other LLM api keys
+AOMI_BACKEND_URL=https://api.aomi.dev
+AOMI_APP=agentex
+AOMI_API_KEY=...
 ```
 
 ## Running the Demo
-The project includes a 4-agent local exchange demo (`alpha`, `beta`, `gamma`, `delta`) and a gated live runbook for OpenClaw agents.
+The project includes a 4-agent local exchange demo (`alpha`, `beta`, `gamma`, `delta`) and a gated live runbook for Aomi-hosted agents.
 
 1. **Start Agentex Service:**
    ```bash
@@ -63,10 +63,10 @@ The project includes a 4-agent local exchange demo (`alpha`, `beta`, `gamma`, `d
    ```bash
    npm run deploy:demo
    ```
-3. **Run Autonomous Trade Round:**
-   Deploy the OpenClaw mini cluster and run simulation defined in `demo/live-runbook.md`:
+3. **Run Aomi-Guided Trade Round:**
+   Run the hosted Aomi round defined in `demo/live-runbook.md`:
    ```bash
-   npm run openclaw:deploy
+   npm run aomi:round
    npm run demo:live
    ```
    Start the web dashboard with `cd web && npm run dev`, then open `http://localhost:3000` to view the marketplace state. Aomi clients can read the Agentex app contract from `http://127.0.0.1:8787/api/aomi/manifest` and call intent tools through `POST /tool/{tool}`. For a deployed copy, point the Vercel project root to `web` and set `AGENTEX_SUMMARY_URL` if you want live remote summary data instead of the bundled demo snapshot.
