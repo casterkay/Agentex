@@ -1,5 +1,6 @@
 import demoSummary from "@/data/demo-summary.json"
 import { Activity } from "lucide-react"
+import Link from "next/link"
 
 import { AgentProfiles } from "./components/AgentProfiles"
 import { TransactionLedger } from "./components/TransactionLedger"
@@ -79,6 +80,9 @@ export default async function Home() {
             <h1 className="text-xl font-bold tracking-tight text-white">Agentex <span className="font-light text-slate-400">Market</span></h1>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/pitch" className="text-sm font-medium text-slate-400 hover:text-white transition-colors mr-4">
+              Testimonial
+            </Link>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium">
                <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-emerald-400"></span>
