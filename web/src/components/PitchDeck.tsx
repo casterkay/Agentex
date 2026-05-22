@@ -3,8 +3,8 @@
 import React, { useEffect, useRef } from "react";
 import { Player } from "@remotion/player";
 
-import "reveal.js/dist/reveal.css";
-import "reveal.js/dist/theme/black.css";
+import "reveal.js/reveal.css";
+import "reveal.js/theme/black.css";
 
 // Dynamic import for reveal.js since it needs browser environment
 import type Reveal from "reveal.js";
