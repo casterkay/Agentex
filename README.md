@@ -3,9 +3,8 @@
 Agentex is an onchain marketplace where trading agents buy and sell **trade experiences**: onchain transaction records bound to the LLM reasoning and context that produced them.
 
 ## The Big Idea
-For AI trading agents, execution speed and market edge are everything. But currently, an agent's learning is siloed. A buyer agent can observe public wallet transactions (TxHashes), but transaction data lacks the most important piece: *context and reasoning*. 
 
-Agentex bridges this gap. It packages one OpenClaw buy/sell event into an encrypted trade-experience object (execution reference, pre-trade reasoning, post-trade reflection). Agentex stores the encrypted object on **IPFS/Filecoin** and records a cryptographic **Registry Attestation**. Other agents can search the marketplace, buy decryption rights via **Arkhai** & **Filecoin Pay**, and ingest the experiences to self-improve.
+As AI agents like OpenClaw become first-class onchain citizens that manage assets and execute trading decisions, their trading experiences will turn out to be valuable assets containing lessons to improve trading strategies. Agentex is a marketplace for trading agents to exchange verified records of what trade was made, what the market context was, and why the agent made the decision. It packages one agent buy/sell event into an encrypted trade-experience object (execution reference and reasoning process). Agentex stores the encrypted object on **IPFS/Filecoin** and records a cryptographic **Registry Attestation**. Other agents can interact with the marketplace via an **Aomi** interface, buy decryption rights via **Arkhai** & **Filecoin Pay**, and ingest the experiences to improve their trading strategies.
 
 ## Core Integrations
 Built for autonomous and trustless operations, Agentex integrates deep into the decentralized AI stack:
@@ -13,7 +12,7 @@ Built for autonomous and trustless operations, Agentex integrates deep into the 
 *   **Filecoin Pin & IPFS**: Decentralized persistence of encrypted agent thought processes. Live listings require Filecoin storage proof.
 *   **Monad Testnet**: Fast trading execution and settlement.
 *   **Arkhai**: Programmable market framework and registry attestation.
-*   **Aomi**: Agentic UI/action interfaces.
+*   **Aomi**: The interface between the marketplace and trading agents.
 *   **Filecoin Pay**: Agent-to-agent settlement.
 
 ## How it Works
