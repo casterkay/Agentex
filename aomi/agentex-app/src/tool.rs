@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::client::{host_handoff, AgentexApp};
+use crate::client::{host_handoff, AgentexApp, AuthenticatedHostIdentity};
 
 const APP_NAME: &str = "agentex";
 
@@ -230,7 +230,8 @@ impl DynAomiTool for RecordTradeExecution {
         if !args.confirm {
             return Ok(host_handoff(Self::NAME, json!(args)));
         }
-        app.post_tool(Self::NAME, &args)
+        let host_identity = authenticated_host_identity(&ctx, false)?;
+        app.post_tool_as_host(Self::NAME, &args, &host_identity)
     }
 }
 
@@ -251,7 +252,8 @@ impl DynAomiTool for PrepareExperienceSale {
             payment_asset: args.payment_asset,
             out_dir: args.out_dir,
         };
-        app.post_tool(Self::NAME, &args)
+        let host_identity = authenticated_host_identity(&ctx, true)?;
+        app.post_tool_as_host(Self::NAME, &args, &host_identity)
     }
 }
 
@@ -282,7 +284,8 @@ impl DynAomiTool for PublishExperienceSale {
         if !args.confirm {
             return Ok(host_handoff(Self::NAME, json!(args)));
         }
-        app.post_tool(Self::NAME, &args)
+        let host_identity = authenticated_host_identity(&ctx, true)?;
+        app.post_tool_as_host(Self::NAME, &args, &host_identity)
     }
 }
 
@@ -315,7 +318,8 @@ impl DynAomiTool for PurchaseExperienceAccess {
         if !args.confirm {
             return Ok(host_handoff(Self::NAME, json!(args)));
         }
-        app.post_tool(Self::NAME, &args)
+        let host_identity = authenticated_host_identity(&ctx, true)?;
+        app.post_tool_as_host(Self::NAME, &args, &host_identity)
     }
 }
 
@@ -367,6 +371,16 @@ fn resolve_host_agent(
     Ok(host)
 }
 
+fn authenticated_host_identity(ctx: &DynToolCallCtx, require_agent: bool) -> Result<AuthenticatedHostIdentity, String> {
+    let agent = if require_agent { Some(host_agent(ctx)?) } else { optional_host_agent(ctx) };
+    Ok(AuthenticatedHostIdentity {
+        session_id: ctx.session_id.clone(),
+        thread_id: host_thread_id(ctx),
+        agent_registry: agent.as_ref().map(|agent| agent.agent_registry.clone()),
+        agent_id: agent.as_ref().map(|agent| agent.agent_id.clone()),
+    })
+}
+
 fn host_agent(ctx: &DynToolCallCtx) -> Result<AgentRef, String> {
     let agent_registry = attribute_string_any(
         ctx,
@@ -394,6 +408,35 @@ fn host_agent(ctx: &DynToolCallCtx) -> Result<AgentRef, String> {
     .ok_or_else(|| "host session identity missing agent id".to_string())?;
 
     Ok(AgentRef {
+        agent_registry,
+        agent_id,
+    })
+}
+
+fn optional_host_agent(ctx: &DynToolCallCtx) -> Option<AgentRef> {
+    let agent_registry = attribute_string_any(
+        ctx,
+        &[
+            &["agent", "agentRegistry"],
+            &["agent", "agent_registry"],
+            &["identity", "agentRegistry"],
+            &["identity", "agent_registry"],
+            &["agentRegistry"],
+            &["agent_registry"],
+        ],
+    )?;
+    let agent_id = attribute_string_any(
+        ctx,
+        &[
+            &["agent", "agentId"],
+            &["agent", "agent_id"],
+            &["identity", "agentId"],
+            &["identity", "agent_id"],
+            &["agentId"],
+            &["agent_id"],
+        ],
+    )?;
+    Some(AgentRef {
         agent_registry,
         agent_id,
     })

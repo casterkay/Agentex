@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { buildAomiManifest } from "./aomi.js";
+import { authenticatedHostIdentityHeaderNames, readAuthenticatedHostIdentity, requiresAuthenticatedHostIdentity } from "./host-identity.js";
 import { stableJson } from "./shared.js";
 import { invokeAgentexTool } from "./tools.js";
 
@@ -12,7 +13,7 @@ export function createAgentexServer(): Server {
       // Set CORS headers
       response.setHeader("Access-Control-Allow-Origin", "*");
       response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      response.setHeader("Access-Control-Allow-Headers", ["Content-Type", ...authenticatedHostIdentityHeaderNames()].join(", "));
 
       if (request.method === "OPTIONS") {
         response.writeHead(204);
@@ -46,8 +47,17 @@ export function createAgentexServer(): Server {
         return;
       }
       const toolName = url.pathname.slice("/tool/".length);
-      const args = await readRequestJson(request);
-      const result = await invokeAgentexTool(toolName, args);
+      const { args, rawBody } = await readRequestJson(request);
+      const hostIdentity = readAuthenticatedHostIdentity(
+        request.headers,
+        toolName,
+        rawBody,
+        process.env.AGENTEX_HOST_IDENTITY_SECRET,
+      );
+      if (requiresAuthenticatedHostIdentity(toolName) && !hostIdentity) {
+        throw new Error(`${toolName} requires authenticated host identity`);
+      }
+      const result = await invokeAgentexTool(toolName, args, hostIdentity);
       sendJson(response, 200, result);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -56,7 +66,7 @@ export function createAgentexServer(): Server {
   });
 }
 
-async function readRequestJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+async function readRequestJson(request: IncomingMessage): Promise<{ args: Record<string, unknown>; rawBody: string }> {
   const chunks: Buffer[] = [];
   let bytes = 0;
   for await (const chunk of request) {
@@ -68,13 +78,14 @@ async function readRequestJson(request: IncomingMessage): Promise<Record<string,
     chunks.push(buffer);
   }
   if (chunks.length === 0) {
-    return {};
+    return { args: {}, rawBody: "{}" };
   }
-  const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+  const rawBody = Buffer.concat(chunks).toString("utf8");
+  const parsed = JSON.parse(rawBody) as unknown;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new Error("request body must be a JSON object");
   }
-  return parsed as Record<string, unknown>;
+  return { args: parsed as Record<string, unknown>, rawBody };
 }
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {

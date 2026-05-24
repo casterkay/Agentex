@@ -45,6 +45,7 @@ Copy `.env.example` to `.env` and configure your keys & networks:
 ```bash
 AGENTEX_RPC_URL=https://rpc.testnet.monad.xyz
 AGENTEX_CHAIN_ID=10143
+AGENTEX_HOST_IDENTITY_SECRET=... # shared HMAC secret for Aomi wrapper -> Agentex service identity headers
 PRIVATE_KEY=0x... # Filecoin Pin wallet key for encrypted uploads
 AOMI_BACKEND_URL=https://api.aomi.dev
 AOMI_APP=agentex
@@ -58,6 +59,7 @@ The project includes a 4-agent local exchange demo (`alpha`, `beta`, `gamma`, `d
    ```bash
    node --import tsx src/cli.ts serve --host 127.0.0.1 --port 8787
    ```
+   For Aomi-hosted seller and buyer flows, the Rust wrapper and the Agentex service must share the same `AGENTEX_HOST_IDENTITY_SECRET` so `/tool/{tool}` can authenticate host session and agent identity.
 2. **Deploy Contracts (Demo Mode):**
    *(Ensure deploy keys and RPC are set in `.env`)*
    ```bash

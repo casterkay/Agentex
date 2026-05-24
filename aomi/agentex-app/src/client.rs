@@ -1,8 +1,20 @@
 use std::time::Duration;
 
+use hmac::{Hmac, Mac};
 use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
+
+type HmacSha256 = Hmac<Sha256>;
+
+#[derive(Clone, Debug)]
+pub struct AuthenticatedHostIdentity {
+    pub session_id: String,
+    pub thread_id: Option<String>,
+    pub agent_registry: Option<String>,
+    pub agent_id: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct AgentexApp {
@@ -39,10 +51,31 @@ impl AgentexApp {
     }
 
     pub fn post_tool<T: Serialize>(&self, tool_name: &str, args: &T) -> Result<Value, String> {
+        self.post_tool_with_identity(tool_name, args, None)
+    }
+
+    pub fn post_tool_as_host<T: Serialize>(
+        &self,
+        tool_name: &str,
+        args: &T,
+        host_identity: &AuthenticatedHostIdentity,
+    ) -> Result<Value, String> {
+        self.post_tool_with_identity(tool_name, args, Some(host_identity))
+    }
+
+    fn post_tool_with_identity<T: Serialize>(
+        &self,
+        tool_name: &str,
+        args: &T,
+        host_identity: Option<&AuthenticatedHostIdentity>,
+    ) -> Result<Value, String> {
+        let body = serde_json::to_string(args)
+            .map_err(|error| format!("Failed to serialize Agentex tool args: {error}"))?;
         let response = self
             .client
             .post(self.tool_url(tool_name))
-            .json(args)
+            .headers(build_authenticated_header_map(tool_name, &body, host_identity)?)
+            .body(body)
             .send()
             .map_err(|error| format!("Agentex service request failed: {error}"))?;
         let status = response.status();
@@ -74,6 +107,26 @@ impl AgentexApp {
     pub fn normalize_result(value: Value) -> Value {
         normalize_value(value, true)
     }
+}
+
+fn build_authenticated_header_map(
+    tool_name: &str,
+    raw_body: &str,
+    host_identity: Option<&AuthenticatedHostIdentity>,
+) -> Result<reqwest::header::HeaderMap, String> {
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::CONTENT_TYPE,
+        reqwest::header::HeaderValue::from_static("application/json"),
+    );
+    for (name, value) in build_authenticated_headers(tool_name, raw_body, host_identity)? {
+        let header_name = reqwest::header::HeaderName::from_bytes(name.as_bytes())
+            .map_err(|error| format!("Invalid Agentex header name {name}: {error}"))?;
+        let header_value = reqwest::header::HeaderValue::from_str(&value)
+            .map_err(|error| format!("Invalid Agentex header value for {name}: {error}"))?;
+        headers.insert(header_name, header_value);
+    }
+    Ok(headers)
 }
 
 fn normalize_error(status: u16, value: Value) -> String {
@@ -128,6 +181,69 @@ fn is_sensitive_key(key: &str) -> bool {
     )
 }
 
+fn build_authenticated_headers(
+    tool_name: &str,
+    raw_body: &str,
+    host_identity: Option<&AuthenticatedHostIdentity>,
+) -> Result<Vec<(String, String)>, String> {
+    let Some(host_identity) = host_identity else {
+        return Ok(Vec::new());
+    };
+    let secret = std::env::var("AGENTEX_HOST_IDENTITY_SECRET")
+        .map_err(|_| "AGENTEX_HOST_IDENTITY_SECRET environment variable is not set".to_string())?;
+    let signature = build_host_identity_signature(tool_name, raw_body, host_identity, &secret)?;
+    let mut headers = vec![
+        ("x-agentex-session-id".to_string(), host_identity.session_id.clone()),
+        ("x-agentex-identity-signature".to_string(), signature),
+    ];
+    if let Some(thread_id) = &host_identity.thread_id {
+        headers.push(("x-agentex-thread-id".to_string(), thread_id.clone()));
+    }
+    match (&host_identity.agent_registry, &host_identity.agent_id) {
+        (Some(agent_registry), Some(agent_id)) => {
+            headers.push(("x-agentex-agent-registry".to_string(), agent_registry.clone()));
+            headers.push(("x-agentex-agent-id".to_string(), agent_id.clone()));
+        }
+        (None, None) => {}
+        _ => return Err("authenticated host identity requires both agent registry and agent id".to_string()),
+    }
+    Ok(headers)
+}
+
+fn build_host_identity_signature(
+    tool_name: &str,
+    raw_body: &str,
+    host_identity: &AuthenticatedHostIdentity,
+    secret: &str,
+) -> Result<String, String> {
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .map_err(|error| format!("Failed to initialize Agentex identity signer: {error}"))?;
+    mac.update(signature_payload(tool_name, raw_body, host_identity).as_bytes());
+    Ok(bytes_to_hex(&mac.finalize().into_bytes()))
+}
+
+fn signature_payload(tool_name: &str, raw_body: &str, host_identity: &AuthenticatedHostIdentity) -> String {
+    [
+        tool_name,
+        host_identity.session_id.as_str(),
+        host_identity.thread_id.as_deref().unwrap_or(""),
+        host_identity.agent_registry.as_deref().unwrap_or(""),
+        host_identity.agent_id.as_deref().unwrap_or(""),
+        body_sha256(raw_body).as_str(),
+    ]
+    .join("\n")
+}
+
+fn body_sha256(raw_body: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(raw_body.as_bytes());
+    bytes_to_hex(&hasher.finalize())
+}
+
+fn bytes_to_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,5 +286,36 @@ mod tests {
         assert_eq!(handoff["SYSTEM_NEXT_ACTION"]["preserve_args"]["privateKey"], "[REDACTED]");
         assert_eq!(handoff["SYSTEM_NEXT_ACTION"]["preserve_args"]["filecoinPayReference"], "payment-ref");
         assert_eq!(handoff["SYSTEM_NEXT_ACTION"]["preserve_args"]["pair"], "ETH/USDC");
+    }
+
+    #[test]
+    fn authenticated_host_identity_headers_include_signature() {
+        let previous_secret = std::env::var("AGENTEX_HOST_IDENTITY_SECRET").ok();
+        std::env::set_var("AGENTEX_HOST_IDENTITY_SECRET", "host-secret");
+
+        let headers = build_authenticated_headers(
+            "prepare_experience_sale",
+            r#"{"priceAmount":"5"}"#,
+            Some(&AuthenticatedHostIdentity {
+                session_id: "session-alpha".to_string(),
+                thread_id: Some("thread-alpha".to_string()),
+                agent_registry: Some("eip155:8453:0xregistry".to_string()),
+                agent_id: Some("1".to_string()),
+            }),
+        )
+        .expect("authenticated headers should build");
+        let headers: std::collections::HashMap<_, _> = headers.into_iter().collect();
+
+        assert_eq!(headers.get("x-agentex-session-id"), Some(&"session-alpha".to_string()));
+        assert_eq!(headers.get("x-agentex-thread-id"), Some(&"thread-alpha".to_string()));
+        assert_eq!(headers.get("x-agentex-agent-registry"), Some(&"eip155:8453:0xregistry".to_string()));
+        assert_eq!(headers.get("x-agentex-agent-id"), Some(&"1".to_string()));
+        assert!(headers.contains_key("x-agentex-identity-signature"));
+
+        if let Some(secret) = previous_secret {
+            std::env::set_var("AGENTEX_HOST_IDENTITY_SECRET", secret);
+        } else {
+            std::env::remove_var("AGENTEX_HOST_IDENTITY_SECRET");
+        }
     }
 }

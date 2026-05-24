@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -654,6 +655,10 @@ test("Aomi-facing server exposes the spec tool names with confirmation gates", a
 });
 
 test("Aomi integration exposes a plugin manifest and intent-shaped service tools", async (t) => {
+  const previousSecret = process.env.AGENTEX_HOST_IDENTITY_SECRET;
+  process.env.AGENTEX_HOST_IDENTITY_SECRET = "host-secret";
+  t.after(() => restoreEnv("AGENTEX_HOST_IDENTITY_SECRET", previousSecret));
+
   const fixture = await fixtureActivity();
   t.after(() => rm(fixture.root, { recursive: true, force: true }));
   const server = createAgentexServer();
@@ -712,7 +717,25 @@ test("Aomi integration exposes a plugin manifest and intent-shaped service tools
 
   const prepared = await fetch(`http://127.0.0.1:${port}/tool/prepare_experience_sale`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      ...signedHostIdentityHeaders(
+        "prepare_experience_sale",
+        {
+          tradeContext: {
+            source: { app: "agentex", sessionId: "session-alpha" },
+            trade: sampleTrade(),
+          },
+          sellerAgent: seller,
+          priceAmount: "5",
+          paymentAsset: "USDFC",
+        },
+        {
+          sessionId: "session-alpha",
+          agent: seller,
+        },
+      ),
+    },
     body: JSON.stringify({
       tradeContext: {
         source: { app: "agentex", sessionId: "session-alpha" },
@@ -826,6 +849,58 @@ test("purchase confirmation handoff redacts buyer secret material", async () => 
       deliveryProof: "delivery-proof",
     },
   });
+});
+
+test("Aomi HTTP service requires authenticated host identity for seller-bound tools", async (t) => {
+  const previousSecret = process.env.AGENTEX_HOST_IDENTITY_SECRET;
+  process.env.AGENTEX_HOST_IDENTITY_SECRET = "host-secret";
+  t.after(() => restoreEnv("AGENTEX_HOST_IDENTITY_SECRET", previousSecret));
+
+  const server = createAgentexServer();
+  t.after(() => server.close());
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const address = server.address();
+  assert.equal(typeof address, "object");
+  const port = address && typeof address === "object" ? address.port : 0;
+
+  const body = {
+    tradeContext: {
+      trade: sampleTrade(),
+    },
+    priceAmount: "5",
+    paymentAsset: "USDFC",
+  };
+
+  const unauthenticated = await fetch(`http://127.0.0.1:${port}/tool/prepare_experience_sale`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  assert.equal(unauthenticated.status, 400);
+  const unauthenticatedBody = (await unauthenticated.json()) as { error: string };
+  assert.match(unauthenticatedBody.error, /authenticated host identity/i);
+
+  const authenticated = await fetch(`http://127.0.0.1:${port}/tool/prepare_experience_sale`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...signedHostIdentityHeaders("prepare_experience_sale", body, {
+        sessionId: "session-alpha",
+        threadId: "thread-alpha",
+        agent: seller,
+      }),
+    },
+    body: JSON.stringify(body),
+  });
+  assert.equal(authenticated.status, 200);
+  const authenticatedBody = (await authenticated.json()) as {
+    status: string;
+    seller_agent: { agentId: string; agentRegistry: string };
+    public_trade_summary: { trade_tx_hash: string };
+  };
+  assert.equal(authenticatedBody.status, "prepared");
+  assert.deepEqual(authenticatedBody.seller_agent, seller);
+  assert.equal(authenticatedBody.public_trade_summary.trade_tx_hash, sampleTrade().trade_tx_hash);
 });
 
 test("CLI and local demo script emit compact JSON summaries", async () => {
@@ -1349,6 +1424,34 @@ function cleanAgentexEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     env[name] = value;
   }
   return { ...env, ...overrides };
+}
+
+function signedHostIdentityHeaders(
+  toolName: string,
+  body: Record<string, unknown>,
+  identity: { sessionId: string; threadId?: string; agent?: { agentRegistry: string; agentId: string } },
+): Record<string, string> {
+  const rawBody = JSON.stringify(body);
+  const payload = [
+    toolName,
+    identity.sessionId,
+    identity.threadId ?? "",
+    identity.agent?.agentRegistry ?? "",
+    identity.agent?.agentId ?? "",
+    sha256(rawBody),
+  ].join("\n");
+  const signature = createHmac("sha256", process.env.AGENTEX_HOST_IDENTITY_SECRET ?? "")
+    .update(payload)
+    .digest("hex");
+
+  return {
+    "x-agentex-session-id": identity.sessionId,
+    ...(identity.threadId ? { "x-agentex-thread-id": identity.threadId } : {}),
+    ...(identity.agent
+      ? { "x-agentex-agent-registry": identity.agent.agentRegistry, "x-agentex-agent-id": identity.agent.agentId }
+      : {}),
+    "x-agentex-identity-signature": signature,
+  };
 }
 
 function sampleLiveEvidence(): Record<string, unknown> {

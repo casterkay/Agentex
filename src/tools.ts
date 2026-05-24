@@ -4,22 +4,23 @@ import path from "node:path";
 import { AOMI_TOOL_NAMES, buildAomiManifest } from "./aomi.js";
 import { listArkhaiEscrows } from "./arkhai.js";
 import {
-    createTradeExperienceAsset,
-    inspectOpenclawActivity,
-    prepareExperienceIngestion,
-    previewTradeExperienceSale,
-    type AomiTradeContext,
+  createTradeExperienceAsset,
+  inspectOpenclawActivity,
+  prepareExperienceIngestion,
+  previewTradeExperienceSale,
+  type AomiTradeContext,
 } from "./experience.js";
 import { uploadExperienceToFilecoin } from "./filecoin.js";
+import type { AuthenticatedHostIdentity } from "./host-identity.js";
 import {
-    collectExperiencePayment,
-    createExperienceListing,
-    createExperiencePurchase,
-    inspectExperienceListing,
-    recordExperienceFeedback,
-    requestExperienceArbitration,
-    submitExperienceFulfillment,
-    verifyExperienceDelivery,
+  collectExperiencePayment,
+  createExperienceListing,
+  createExperiencePurchase,
+  inspectExperienceListing,
+  recordExperienceFeedback,
+  requestExperienceArbitration,
+  submitExperienceFulfillment,
+  verifyExperienceDelivery,
 } from "./market.js";
 import { prepareRegistryAttestation, submitRegistryAttestation } from "./registry.js";
 import { publicTradeSummarySchema, type ExecutionProof, type ExperienceManifest, type TradeExperience } from "./schemas.js";
@@ -38,7 +39,11 @@ export function planExchangeRound(agents: string[]): Array<{ buyer: string; sell
   }));
 }
 
-export async function invokeAgentexTool(name: string, args: Record<string, unknown>): Promise<AgentexToolResult> {
+export async function invokeAgentexTool(
+  name: string,
+  args: Record<string, unknown>,
+  hostIdentity?: AuthenticatedHostIdentity,
+): Promise<AgentexToolResult> {
   switch (name) {
     case "get_agent_state":
     case "get_market_state":
@@ -93,7 +98,7 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
           next_action: `call ${name} again with confirm:true after Aomi simulation and signing returns a TxHash`,
         };
       }
-      const tradeContext = tradeContextArg(args);
+      const tradeContext = tradeContextArg(args, hostIdentity);
       const trade = tradeContext.trade;
       const publicTradeSummary = publicTradeSummarySchema.parse(publicTradeSummaryArg(trade));
       return {
@@ -116,8 +121,8 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
     case "prepare_experience_sale":
       return {
         ...(await previewTradeExperienceSale({
-          ...experienceInputArgs(args),
-          sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
+          ...experienceInputArgs(args, hostIdentity),
+          sellerAgent: trustedAgentRefArg(args.sellerAgent, "sellerAgent", hostIdentity),
           priceAmount: stringArg(args, "priceAmount"),
           paymentAsset: stringArg(args, "paymentAsset"),
           outDir: optionalStringArg(args, "outDir"),
@@ -133,8 +138,8 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
         };
       }
       const asset = await createTradeExperienceAsset({
-        ...experienceInputArgs(args),
-        sellerAgent: agentRefArg(args.sellerAgent, "sellerAgent"),
+        ...experienceInputArgs(args, hostIdentity),
+        sellerAgent: trustedAgentRefArg(args.sellerAgent, "sellerAgent", hostIdentity),
         key: stringArg(args, "key"),
         outDir: optionalStringArg(args, "outDir"),
       });
@@ -217,7 +222,7 @@ export async function invokeAgentexTool(name: string, args: Record<string, unkno
       }
       return createExperiencePurchase({
         listingPath: stringArg(args, "listingPath"),
-        buyerAgent: agentRefArg(args.buyerAgent, "buyerAgent"),
+        buyerAgent: trustedAgentRefArg(args.buyerAgent, "buyerAgent", hostIdentity),
         filecoinPayReference: stringArg(args, "filecoinPayReference"),
         escrowId: optionalStringArg(args, "escrowId"),
         keyEnvelope: stringArg(args, "keyEnvelope"),
@@ -524,9 +529,26 @@ function agentRefArg(value: unknown, name: string): AgentRef {
   return { agentRegistry: ref.agentRegistry, agentId: ref.agentId };
 }
 
-function experienceInputArgs(args: Record<string, unknown>): { tradeContext: AomiTradeContext } | { activityPath: string; memoryPath: string } {
+function trustedAgentRefArg(value: unknown, name: string, hostIdentity?: AuthenticatedHostIdentity): AgentRef {
+  if (!hostIdentity?.agent) {
+    return agentRefArg(value, name);
+  }
+  if (value === undefined) {
+    return hostIdentity.agent;
+  }
+  const provided = agentRefArg(value, name);
+  if (provided.agentRegistry !== hostIdentity.agent.agentRegistry || provided.agentId !== hostIdentity.agent.agentId) {
+    throw new Error(`${name} must match the authenticated host identity`);
+  }
+  return hostIdentity.agent;
+}
+
+function experienceInputArgs(
+  args: Record<string, unknown>,
+  hostIdentity?: AuthenticatedHostIdentity,
+): { tradeContext: AomiTradeContext } | { activityPath: string; memoryPath: string } {
   if (args.tradeContext !== undefined) {
-    return { tradeContext: tradeContextArg(args) };
+    return { tradeContext: tradeContextArg(args, hostIdentity) };
   }
   return {
     activityPath: stringArg(args, "activityPath"),
@@ -534,20 +556,24 @@ function experienceInputArgs(args: Record<string, unknown>): { tradeContext: Aom
   };
 }
 
-function tradeContextArg(args: Record<string, unknown>): AomiTradeContext {
+function tradeContextArg(args: Record<string, unknown>, hostIdentity?: AuthenticatedHostIdentity): AomiTradeContext {
   const value = args.tradeContext;
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("tradeContext is required");
   }
   const context = value as Record<string, unknown>;
   const source = context.source;
-  if (!source || typeof source !== "object" || Array.isArray(source)) {
+  if (source !== undefined && (!source || typeof source !== "object" || Array.isArray(source))) {
     throw new Error("tradeContext.source is required");
   }
-  const sourceObject = source as Record<string, unknown>;
-  const app = stringField(sourceObject, "app");
-  const sessionId = stringField(sourceObject, "sessionId");
-  const threadId = sourceObject.threadId === undefined ? undefined : stringField(sourceObject, "threadId");
+  const sourceObject = (source as Record<string, unknown> | undefined) ?? {};
+  const app = hostIdentity ? "agentex" : stringField(sourceObject, "app");
+  const sessionId = hostIdentity ? hostIdentity.sessionId : stringField(sourceObject, "sessionId");
+  const threadId = hostIdentity
+    ? hostIdentity.threadId
+    : sourceObject.threadId === undefined
+      ? undefined
+      : stringField(sourceObject, "threadId");
   const trade = context.trade;
   if (!trade || typeof trade !== "object" || Array.isArray(trade)) {
     throw new Error("tradeContext.trade is required");
